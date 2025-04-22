@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}档案转接查询 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="w-full px-4 py-6">
+    <!-- Header -->
+    <header class="mb-6 animate-fadeIn">
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 text-center">档案转接查询</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">查看您的档案状态和转接进度</p>
+    </header>
+
+    <!-- Announcement -->
+    <div class="bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 dark:border-yellow-400 p-4 mb-6 rounded-lg animate-fadeIn">
+        <div class="flex items-start">
+            <div class="flex-shrink-0 text-yellow-500 dark:text-yellow-400 mt-1">
+                <i class="fas fa-bullhorn"></i>
+            </div>
+            <div class="ml-3 flex-1">
+                <h3 class="text-sm font-medium text-yellow-800 dark:text-yellow-200">重要公告</h3>
+                <p class="mt-1 text-sm text-yellow-700 dark:text-yellow-300 whitespace-pre-line">{{ announcement.content }}</p>
+                <p class="mt-2 text-xs text-yellow-600 dark:text-yellow-400">
+                    <i class="far fa-clock mr-1"></i> 更新于 {{ announcement.update_date }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Basic Info Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5 mb-6 animate-fadeIn">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 flex items-center">
+                <i class="fas fa-user mr-2 text-red-600 dark:text-red-400"></i> 基本信息
+            </h2>
+            <span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded-full">
+                {{ identities|map(attribute='identity_name')|join('、') }}
+            </span>
+        </div>
+        <div class="space-y-3 text-sm">
+            <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 w-20">姓名：</span>
+                <span class="text-gray-800 dark:text-gray-200 font-medium">{{ current_user.name }}</span>
+            </div>
+            <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 w-20">班级：</span>
+                <span class="text-gray-800 dark:text-gray-200">{{ current_user.class_name }}</span>
+            </div>
+            <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 w-20">学号：</span>
+                <span class="text-gray-800 dark:text-gray-200">{{ current_user.student_id }}</span>
+            </div>
+            <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 w-20">批次：</span>
+                <span class="text-gray-800 dark:text-gray-200">{{ current_user.batch or '未分配' }}</span>
+            </div>
+            <div class="flex items-center">
+                <span class="text-gray-600 dark:text-gray-400 w-20">培养人：</span>
+                <span class="text-gray-800 dark:text-gray-200">
+                    {% if cultivators %}
+                        {{ cultivators|map(attribute='name')|map('add_role', cultivators)|join('、') }}
+                    {% else %}
+                        无
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Material Completeness Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5 mb-6 animate-fadeIn">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+            <i class="fas fa-folder-open mr-2 text-red-600 dark:text-red-400"></i> 资料完整性检查
+        </h2>
+        {% for identity in identities %}
+        <div class="mb-4">
+            <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ identity.identity_name }} 所需材料</h3>
+            <div class="mt-2 space-y-2">
+                {% for material in materials if material.id in material_requirements[identity.id]|map(attribute='id') %}
+                <div class="flex justify-between items-center text-sm">
+                    <div class="flex-1 truncate">
+                        <span class="text-gray-800 dark:text-gray-200">{{ material.name }}</span>
+                        {% if material.details|length > 0 %}
+                        <span class="text-gray-500 dark:text-gray-400 text-xs ml-1" title="{{ material.details }}">{{ material.details|truncate(20) }}</span>
+                        {% endif %}
+                    </div>
+                    <span class="{% if material.status == '齐全' %}text-green-600{% elif material.status == '待审核' %}text-yellow-600{% elif material.status == '不足' %}text-red-600{% else %}text-gray-600{% endif %} flex items-center text-xs">
+                        <i class="fas {% if material.status == '齐全' %}fa-check-circle{% elif material.status == '待审核' %}fa-exclamation-circle{% elif material.status == '不足' %}fa-times-circle{% else %}fa-question-circle{% endif %} mr-1"></i> {{ material.status or '未录入' }}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+        <div class="mt-4 pt-3 border-t border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-center text-sm">
+                <span class="text-gray-600 dark:text-gray-400">资料完整度：</span>
+                <div class="flex items-center">
+                    <div class="w-20 bg-gray-200 dark:rounded-full h-2 mr-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ completeness }}%"></div>
+                    </div>
+                    <span class="text-blue-600 dark:text-blue-400 font-medium">{{ completeness|round(1) }}%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Status Card -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5 animate-fadeIn">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+            <i class="fas fa-exchange-alt mr-2 text-red-600 dark:text-red-400"></i> 档案转接状态
+        </h2>
+        {% if transfer_status.transfer_status == '未开始' and '入党积极分子' in identities|map(attribute='identity_name')|list %}
+        <form method="POST" action="{{ url_for('apply_transfer') }}" class="mb-6">
+            <div class="flex items-center border border-gray-300 dark:border-gray-600 rounded-lg">
+                <input type="text" name="receiver" placeholder="输入接收地" class="flex-1 px-3 py-2 rounded-l-lg bg-transparent focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 text-sm" required>
+                <button type="submit" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-r-lg transition duration-200 flex items-center">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </form>
+        {% endif %}
+        <div class="space-y-3 text-sm">
+            <div class="flex justify-between items-center">
+                <span class="text-gray-800 dark:text-gray-200">转接状态</span>
+                <span class="bg-{% if transfer_status.transfer_status == '已放弃' %}gray{% else %}blue{% endif %}-100 text-{% if transfer_status.transfer_status == '已放弃' %}gray{% else %}blue{% endif %}-800 px-2 py-1 rounded-full text-xs">
+                    {{ transfer_status.transfer_status }}
+                </span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-800 dark:text-gray-200">转出时间</span>
+                <span class="text-gray-600 dark:text-gray-400">{{ transfer_status.transfer_date or '未开始' }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-800 dark:text-gray-200">接收地</span>
+                <span class="text-gray-600 dark:text-gray-400">{{ transfer_status.receiver or '待定' }}</span>
+            </div>
+            <div class="flex justify-between items-center">
+                <span class="text-gray-800 dark:text-gray-200">接收状态</span>
+                <span class="{% if transfer_status.receive_status == '已放弃' %}text-gray-600{% elif transfer_status.receive_status == '待确认' %}text-yellow-600{% else %}text-green-600{% endif %} flex items-center text-xs">
+                    <i class="fas {% if transfer_status.receive_status == '已放弃' %}fa-ban{% elif transfer_status.receive_status == '待确认' %}fa-clock{% else %}fa-check-circle{% endif %} mr-1"></i> {{ transfer_status.receive_status }}
+                </span>
+            </div>
+        </div>
+        <!-- Transfer Progress -->
+        <div id="progressSection" class="mt-6 {% if transfer_status.transfer_status == '已放弃' %}hidden{% endif %}">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-xs font-semibold px-2 py-1 rounded-full text-blue-600 bg-blue-100 dark:text-blue-400 dark:bg-blue-900">转接进度</span>
+                <span class="text-xs font-semibold text-blue-600 dark:text-blue-400">{{ transfer_status.progress|default(0) }}%</span>
+            </div>
+            <div class="w-full bg-gray-200 dark:rounded-full h-1.5">
+                <div class="bg-blue-600 h-1.5 rounded-full" style="width: {{ transfer_status.progress|default(0) }}%"></div>
+            </div>
+            <div class="flex justify-between text-xs text-gray-600 dark:text-gray-400 mt-2">
+                <span class="{% if transfer_status.progress|default(0) >= 25 %}text-blue-600 dark:text-blue-400{% endif %}">已提交</span>
+                <span class="{% if transfer_status.progress|default(0) >= 50 %}text-blue-600 dark:text-blue-400{% endif %}">审核中</span>
+                <span class="{% if transfer_status.progress|default(0) >= 75 %}text-blue-600 dark:text-blue-400{% endif %}">转接中</span>
+                <span class="{% if transfer_status.progress|default(0) >= 100 %}text-blue-600 dark:text-blue-400{% endif %}">已完成</span>
+            </div>
+        </div>
+        <!-- Abandon Notice -->
+        <div id="abandonNotice" class="{% if transfer_status.transfer_status != '已放弃' %}hidden{% endif %} mt-4 p-3 bg-gray-100 dark:bg-gray-700 rounded-lg border border-gray-300 dark:border-gray-600">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 text-red-500 dark:text-red-400 mt-1">
+                    <i class="fas fa-exclamation-circle"></i>
+                </div>
+                <div class="ml-3 flex-1">
+                    <h3 class="text-sm font-medium text-gray-800 dark:text-gray-200">您已放弃档案转接</h3>
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">放弃时间: {{ transfer_status.abandoned_at or '未知' }}</p>
+                    {% if signature %}
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">签字时间: {{ signature.created_at }}</p>
+                    <img src="{{ signature.signature_data }}" alt="用户签字" class="mt-2 w-full h-auto border border-gray-300 dark:border-gray-600 rounded">
+                    {% else %}
+                    <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">无签字记录</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <!-- Action Buttons -->
+        <div class="mt-6 grid grid-cols-1 gap-3">
+            <a href="{{ url_for('help') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-md transition duration-200 flex items-center justify-center text-sm">
+                <i class="fas fa-question-circle mr-2"></i> 帮助
+            </a>
+            {% if '入党积极分子' in identities|map(attribute='identity_name')|list and transfer_status.transfer_status != '已放弃' %}
+            <form method="POST" action="{{ url_for('transfer') }}">
+                <input type="hidden" name="action" value="abandon">
+                <button type="submit" id="abandonBtn" class="bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-md transition duration-200 flex items-center justify-center text-sm w-full">
+                    <i class="fas fa-ban mr-2"></i> 放弃转接
+                </button>
+            </form>
+            {% else %}
+            <button class="bg-gray-400 text-white py-2 px-4 rounded-md cursor-not-allowed flex items-center justify-center text-sm" disabled>
+                <i class="fas fa-ban mr-2"></i> 禁止操作
+            </button>
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-md transition duration-200 flex items-center justify-center text-sm">
+                <i class="fas fa-sign-out-alt mr-2"></i> 退出登录
+            </a>
+        </div>
+    </div>
+</div>
+{% filter add_role(cultivators) %}
+{% if role %}
+{{ value }}（{{ role }}）
+{% else %}
+{{ value }}
+{% endif %}
+{% endfilter %}
+{% endblock %}

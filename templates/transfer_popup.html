@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}档案转接提示{% endblock %}
+{% block content %}
+<div class="w-full px-4 py-6">
+
+    <header class="mb-6 animate-fadeIn">
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 text-center">档案转接提示</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">入党积极分子特殊提示</p>
+    </header>
+
+    <!-- 提示内容 -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5 animate-fadeIn">
+        <div class="flex items-center mb-4">
+            <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+            <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100">重要提示</h2>
+        </div>
+        
+        <div class="bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 p-4 mb-4 rounded-r-lg">
+            <p class="text-gray-800 dark:text-gray-200">
+                同学您好，您是<b class="text-red-600 dark:text-red-400">入党积极分子</b>，请确认是否继续进行档案转接流程。
+            </p>
+            <p class="text-gray-700 dark:text-gray-300 mt-2 text-sm">
+                档案转接需确保所有材料齐全，建议您先检查资料完整性。
+            </p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3 mt-6">
+            <a href="{{ url_for('transfer') }}" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg flex items-center justify-center transition duration-200">
+                <i class="fas fa-arrow-right mr-2"></i>继续转接
+            </a>
+            <a href="{{ url_for('logout') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 dark:text-gray-200 dark:bg-gray-700 py-2 px-4 rounded-lg flex items-center justify-center transition duration-200">
+                <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

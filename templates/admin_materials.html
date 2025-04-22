@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}材料配置 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">材料配置管理</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">配置各身份类型所需的档案材料</p>
+            </div>
+            <a href="{{ url_for('admin') }}" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition flex items-center">
+                <i class="fas fa-arrow-left mr-1"></i> 返回仪表盘
+            </a>
+        </div>
+    </header>
+
+    <!-- 警告提示 -->
+    <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-600 p-4 mb-6 rounded-r-lg">
+        <div class="flex">
+            <div class="flex-shrink-0 text-blue-500 dark:text-blue-400">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div class="ml-3">
+                <p class="text-sm text-blue-700 dark:text-blue-300">
+                    <span class="font-medium">提示：</span> 高等级身份会自动继承低等级身份的所有材料。修改低等级身份的材料会影响所有高等级身份。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 四列布局 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% for identity in identities %}
+        <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden h-fit">
+            <!-- 身份标题 -->
+            <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center">
+                    <i class="fas fa-id-card-alt mr-2 text-indigo-600 dark:text-indigo-400"></i>
+                    {{ identity.name }}
+                </h2>
+            </div>
+            
+            <div class="p-4">
+                <form method="POST" action="{{ url_for('admin_materials') }}" class="material-form">
+                    <input type="hidden" name="identity_id" value="{{ identity.id }}">
+                    
+                    <!-- 继承的材料 (仅显示给非最低等级身份) -->
+                    {% if identity.id > 1 %}
+                    <div class="mb-4">
+                        <div class="accordion-header flex items-center justify-between cursor-pointer p-2 bg-gray-100 dark:rounded-t text-sm" onclick="toggleAccordion(this)">
+                            <span class="text-gray-700 dark:text-gray-300">
+                                <i class="fas fa-layer-group mr-1"></i>继承的材料
+                            </span>
+                            <i class="fas fa-chevron-down text-gray-500 dark:text-gray-400 text-xs transition-transform transform"></i>
+                        </div>
+                        <div class="accordion-content hidden p-2 border border-gray-200 dark:border-gray-600 rounded-b text-xs">
+                            {% for id in range(1, identity.id) %}
+                            <div class="mb-2">
+                                <h4 class="text-gray-500 dark:text-gray-400 mb-1">
+                                    来自 {{ identities[id - 1].name }}:
+                                </h4>
+                                <div class="space-y-1 pl-2">
+                                    {% for material in material_requirements[id] %}
+                                    <div class="flex items-center text-gray-700 dark:text-gray-300">
+                                        <input type="checkbox" name="materials[]" value="{{ material.name }}" checked disabled class="h-3 w-3 text-indigo-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 mr-1">
+                                        <span class="truncate">{{ material.name }}</span>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- 当前身份的材料 -->
+                    <div class="mb-4">
+                        <h3 class="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                            <i class="fas fa-edit mr-1"></i>可编辑材料：
+                        </h3>
+                        <div class="space-y-2 max-h-60 overflow-y-auto thin-scrollbar">
+                            {% for material in material_requirements[identity.id] %}
+                            {% if identity.id == 1 or material.id not in material_requirements[identity.id - 1]|map(attribute='id') %}
+                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:transition text-sm">
+                                <label class="flex items-center flex-1 min-w-0">
+                                    <input type="checkbox" name="materials[]" value="{{ material.name }}" checked class="h-3 w-3 text-indigo-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 mr-2">
+                                    <span class="truncate">{{ material.name }}</span>
+                                </label>
+                                <button type="button" class="delete-material-btn text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition text-xs ml-2" 
+                                        data-material-id="{{ material.id }}" 
+                                        data-material-name="{{ material.name }}"
+                                        data-identity-id="{{ identity.id }}">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                            {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <!-- 添加新材料 -->
+                    <div>
+                        <div class="flex">
+                            <input type="text" name="materials[]" placeholder="新材料名称" 
+                                   class="flex-1 px-2 py-1 text-sm border border-gray-300 dark:border-gray-600 rounded-l focus:ring-1 focus:ring-indigo-500 dark:bg-gray-700 dark:text-gray-100 transition">
+                            <button type="submit" class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-r text-sm transition">
+                                <i class="fas fa-plus"></i>
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div id="deleteMaterialModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认删除</h3>
+            <button onclick="closeDeleteModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6" id="deleteModalContent">
+            确定要删除此材料吗？此操作将影响高等级身份的材料清单，且不可撤销。
+        </p>
+        <div class="flex justify-end space-x-3">
+            <button type="button" onclick="closeDeleteModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                取消
+            </button>
+            <button id="confirmDeleteBtn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700">
+                确认删除
+            </button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 折叠面板功能
+function toggleAccordion(header) {
+    const content = header.nextElementSibling;
+    const icon = header.querySelector('i.fa-chevron-down');
+    content.classList.toggle('hidden');
+    icon.classList.toggle('rotate-180');
+}
+
+// 表单提交处理
+document.querySelectorAll('.material-form').forEach(form => {
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // 验证新材料输入
+        const newMaterialInput = form.querySelector('input[type="text"]');
+        if (newMaterialInput && newMaterialInput.value.trim() === '') {
+            showFlashMessage('新材料名称不能为空', 'error');
+            return;
+        }
+        
+        // 收集表单数据
+        const formData = new FormData(form);
+        
+        // AJAX提交
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                showFlashMessage('材料更新成功', 'success');
+                setTimeout(() => location.reload(), 1000);
+            } else {
+                throw new Error('更新失败');
+            }
+        })
+        .catch(error => {
+            showFlashMessage('材料更新失败: ' + error.message, 'error');
+        });
+    });
+});
+
+// 删除材料按钮点击事件
+let currentMaterialToDelete = null;
+document.querySelectorAll('.delete-material-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        currentMaterialToDelete = {
+            id: this.dataset.materialId,
+            name: this.dataset.materialName,
+            identityId: this.dataset.identityId
+        };
+        
+        document.getElementById('deleteModalContent').textContent = 
+            `确定要删除材料"${currentMaterialToDelete.name}"吗？此操作将影响高等级身份的材料清单，且不可撤销。`;
+        
+        document.getElementById('deleteMaterialModal').classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    });
+});
+
+// 确认删除
+document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (!currentMaterialToDelete) return;
+    
+    fetch('{{ url_for("delete_material_route") }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: `material_id=${currentMaterialToDelete.id}&identity_id=${currentMaterialToDelete.identityId}`
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showFlashMessage('材料删除成功', 'success');
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            throw new Error(data.error || '删除失败');
+        }
+    })
+    .catch(error => {
+        showFlashMessage('删除失败: ' + error.message, 'error');
+    })
+    .finally(() => {
+        closeDeleteModal();
+    });
+});
+
+// 关闭删除模态框
+function closeDeleteModal() {
+    document.getElementById('deleteMaterialModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    currentMaterialToDelete = null;
+}
+
+// 显示通知消息
+function showFlashMessage(message, type) {
+    const container = document.getElementById('flash-messages') || document.body;
+    
+    const messageEl = document.createElement('div');
+    messageEl.className = `flash-message px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 animate-fadeIn ${
+        type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' :
+        type === 'success' ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' :
+        'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100'
+    }`;
+    
+    messageEl.innerHTML = `
+        <i class="fas ${
+            type === 'error' ? 'fa-exclamation-circle' :
+            type === 'success' ? 'fa-check-circle' : 'fa-info-circle'
+        }"></i>
+        <span class="flex-1">${message}</span>
+        <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+    `;
+    
+    container.appendChild(messageEl);
+    setTimeout(() => messageEl.remove(), 5000);
+}
+
+// 点击模态框外部关闭
+window.onclick = function(event) {
+    if (event.target === document.getElementById('deleteMaterialModal')) {
+        closeDeleteModal();
+    }
+};
+</script>
+
+<style>
+.rotate-180 {
+    transform: rotate(180deg);
+}
+
+/* 自定义滚动条样式 */
+.thin-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 2px;
+}
+
+.thin-scrollbar::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 2px;
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-track {
+    background: #374151;
+}
+
+.dark .thin-scrollbar::-webkit-scrollbar-thumb {
+    background: #6b7280;
+}
+</style>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}初始化用户数据 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">初始化用户数据</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">重置所选用户的材料和转接状态</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Content -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+        <div class="bg-yellow-100 dark:bg-yellow-900 border-l-4 border-yellow-500 dark:border-yellow-400 text-yellow-700 dark:text-yellow-200 p-4 mb-6 rounded">
+            <p class="text-sm">
+                <span class="font-semibold">警告：</span> 此操作将重置所选用户的材料状态为“待审核”，清空材料详情，重置转接状态为“未开始”，并删除相关签名数据。此操作不可撤销，请谨慎操作。
+            </p>
+        </div>
+
+        <form id="resetForm" method="POST">
+            <div class="mb-6">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">选择要初始化的用户</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                        <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                            <tr>
+                                <th class="py-3 px-4 min-w-[50px]">
+                                    <input type="checkbox" id="selectAll" class="h-4 w-4 text-indigo-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600">
+                                </th>
+                                <th class="py-3 px-4 min-w-[120px]">学号</th>
+                                <th class="py-3 px-4 min-w-[100px]">姓名</th>
+                                <th class="py-3 px-4 min-w-[150px]">班级</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users if not user.is_admin %}
+                            <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition">
+                                <td class="py-3 px-4">
+                                    <input type="checkbox" name="user_ids" value="{{ user.id }}" class="user-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600">
+                                </td>
+                                <td class="py-3 px-4 truncate">{{ user.student_id }}</td>
+                                <td class="py-3 px-4 truncate">{{ user.name }}</td>
+                                <td class="py-3 px-4 truncate">{{ user.class_name }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="flex items-center space-x-4">
+                <button type="button" onclick="openConfirmModal()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center">
+                    <i class="fas fa-sync-alt mr-2"></i> 确认初始化
+                </button>
+                <a href="{{ url_for('admin_users') }}" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center">
+                    <i class="fas fa-times mr-2"></i> 取消
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Confirm Reset Modal -->
+<div id="confirmResetModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认初始化</h3>
+            <button onclick="closeConfirmModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">确定要初始化选中的用户数据吗？此操作将重置材料状态、转接状态和签名数据，且不可撤销。</p>
+        <div class="flex justify-end space-x-2">
+            <button type="button" onclick="closeConfirmModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                取消
+            </button>
+            <button onclick="document.getElementById('resetForm').submit()" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                确认
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleSelectAll() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.user-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = selectAll.checked;
+    });
+}
+
+document.getElementById('selectAll').addEventListener('change', toggleSelectAll);
+
+function openConfirmModal() {
+    const checkboxes = document.querySelectorAll('.user-checkbox:checked');
+    if (checkboxes.length === 0) {
+        const errorMessage = document.createElement('div');
+        errorMessage.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100 animate-fadeIn flash-message';
+        errorMessage.innerHTML = `
+            <i class="fas fa-exclamation-circle"></i>
+            <span class="flex-1">请至少选择一名用户</span>
+            <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+        `;
+        document.body.appendChild(errorMessage);
+        setTimeout(() => errorMessage.remove(), 5000);
+        return;
+    }
+    document.getElementById('confirmResetModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeConfirmModal() {
+    document.getElementById('confirmResetModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+window.onclick = function(event) {
+    if (event.target === document.getElementById('confirmResetModal')) {
+        closeConfirmModal();
+    }
+};
+</script>
+{% endblock %}

@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}材料核对一览表 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">材料核对一览表</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">查看和更新用户材料状态</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Identity Tabs -->
+    <div class="mb-6">
+        <div class="border-b border-gray-200 dark:border-gray-700">
+            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
+                        data-identity-id="" data-tab="all"
+                        class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400">
+                    所有身份
+                </button>
+                {% for identity in checklist.identities %}
+                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500"
+                        data-identity-id="{{ identity.id }}" data-tab="{{ identity.id }}">
+                    {{ identity.name }}
+                </button>
+                {% endfor %}
+            </nav>
+        </div>
+    </div>
+
+    <!-- Checklist Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                    <tr>
+                        <th class="py-3 px-4 min-w-[100px]">学号</th>
+                        <th class="py-3 px-4 min-w-[100px] sticky left-0 bg-gray-100 dark:bg-gray-700 z-10">姓名</th>
+                        <th class="py-3 px-4 min-w-[100px]">批次</th>
+                        <th class="py-3 px-4 min-w-[120px]">政治身份</th>
+                        {% for material in checklist.materials %}
+                        <th class="py-3 px-4 min-w-[150px] material-col" data-material-id="{{ material.id }}" data-identity-ids="{{ material.identity_ids|join(',') }}">{{ material.name }}</th>
+                        {% endfor %}
+                        <th class="py-3 px-4 min-w-[140px] sticky right-0 bg-gray-100 dark:bg-gray-700 z-10">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in checklist.checklist %}
+                    <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition identity-{{ entry.user.identity_ids|join(' identity-') }}" id="user-{{ entry.user.id }}">
+                        <td class="py-3 px-4 truncate">{{ entry.user.student_id }}</td>
+                        <td class="py-3 px-4 truncate sticky left-0 bg-white dark:bg-gray-800 z-10">{{ entry.user.name }}</td>
+                        <td class="py-3 px-4 truncate">{{ entry.user.batch or '未分配' }}</td>
+                        <td class="py-3 px-4 truncate">{{ entry.user.identity_names|join('、') }}</td>
+                        {% for material in entry.materials %}
+                        <td class="py-3 px-4 material-col" data-material-id="{{ material.id }}" data-identity-ids="{{ material.identity_ids|join(',') }}">
+                            <div class="flex items-center space-x-2">
+                                <div class="relative w-24">
+                                    <select name="status" class="status-select w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none text-sm"
+                                            data-user-id="{{ entry.user.id }}" data-material-id="{{ material.id }}">
+                                        <option value="" {% if not material.status %}selected{% endif %}>未录入</option>
+                                        <option value="齐全" {% if material.status == '齐全' %}selected{% endif %}>齐全</option>
+                                        <option value="待审核" {% if material.status == '待审核' %}selected{% endif %}>待审核</option>
+                                        <option value="不足" {% if material.status == '不足' %}selected{% endif %}>不足</option>
+                                    </select>
+                                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <input type="text" name="details" class="details-input w-24 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 text-sm"
+                                       value="{{ material.details or '' }}" placeholder="备注"
+                                       data-user-id="{{ entry.user.id }}" data-material-id="{{ material.id }}">
+                            </div>
+                        </td>
+                        {% endfor %}
+                        <td class="py-3 px-4 sticky right-0 bg-white dark:bg-gray-800 z-10">
+                            <div class="flex flex-nowrap items-center space-x-1">
+                                <button class="save-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-md shadow-sm transition duration-200 flex items-center text-xs"
+                                        data-user-id="{{ entry.user.id }}">
+                                    <i class="fas fa-save mr-1"></i> 保存
+                                </button>
+                                <button class="complete-btn bg-green-600 hover:bg-green-700 text-white px-2.5 py-1 rounded-md shadow-sm transition duration-200 flex items-center text-xs"
+                                        data-user-id="{{ entry.user.id }}">
+                                    <i class="fas fa-check-circle mr-1"></i> 补全
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Complete Confirmation Modal -->
+<div id="completeConfirmModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认一键补全</h3>
+            <button onclick="closeCompleteConfirmModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">一键补全将设置所有材料为“齐全”并清空备注，确认继续？</p>
+        <div class="flex justify-end space-x-2">
+            <button type="button" onclick="closeCompleteConfirmModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+                取消
+            </button>
+            <button id="confirmCompleteBtn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+                确认
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    // Tab Switching
+    const tabButtons = document.querySelectorAll('.tab-btn');
+    tabButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const identityId = this.dataset.identityId;
+
+            // Update tab styles
+            tabButtons.forEach(btn => {
+                btn.classList.remove('border-indigo-500', 'text-indigo-600', 'dark:text-indigo-400', 'dark:border-indigo-400');
+                btn.classList.add('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'dark:hover:border-gray-500');
+            });
+            this.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'dark:hover:border-gray-500');
+            this.classList.add('border-indigo-500', 'text-indigo-600', 'dark:text-indigo-400', 'dark:border-indigo-400');
+
+            // Filter rows by identity
+            const rows = document.querySelectorAll('tbody tr');
+            rows.forEach(row => {
+                row.style.display = (!identityId || row.classList.contains(`identity-${identityId}`)) ? '' : 'none';
+            });
+
+            // Filter material columns by identity
+            const materialCols = document.querySelectorAll('.material-col');
+            materialCols.forEach(col => {
+                const identityIds = col.dataset.identityIds.split(',');
+                col.style.display = (!identityId || identityIds.includes(identityId)) ? '' : 'none';
+            });
+        });
+    });
+
+    // Save Button
+    document.querySelectorAll('.save-btn').forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const userId = e.target.dataset.userId;
+            const row = document.getElementById(`user-${userId}`);
+            const selects = row.querySelectorAll('.status-select:not([style*="display: none"])');
+            const inputs = row.querySelectorAll('.details-input:not([style*="display: none"])');
+            let success = true;
+
+            for (let i = 0; i < selects.length; i++) {
+                const status = selects[i].value;
+                const details = inputs[i].value;
+                const materialId = selects[i].dataset.materialId;
+
+                if (status) {
+                    const response = await fetch('{{ url_for("update_user_material") }}', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: new URLSearchParams({
+                            user_id: userId,
+                            material_id: materialId,
+                            status: status,
+                            details: details
+                        })
+                    });
+                    const result = await response.json();
+                    if (!result.success) {
+                        success = false;
+                    }
+                }
+            }
+
+            const message = document.createElement('div');
+            message.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 animate-fadeIn flash-message';
+            if (success) {
+                message.className += ' bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100';
+                message.innerHTML = `
+                    <i class="fas fa-check-circle"></i>
+                    <span class="flex-1">所有材料状态更新成功</span>
+                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                `;
+            } else {
+                message.className += ' bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
+                message.innerHTML = `
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span class="flex-1">部分或全部材料更新失败</span>
+                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                `;
+            }
+            document.body.appendChild(message);
+            setTimeout(() => message.remove(), 5000);
+        });
+    });
+
+    // Complete Button
+    document.querySelectorAll('.complete-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.dataset.userId;
+            document.getElementById('completeConfirmModal').classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+
+            const confirmBtn = document.getElementById('confirmCompleteBtn');
+            confirmBtn.onclick = () => {
+                const row = document.getElementById(`user-${userId}`);
+                const selects = row.querySelectorAll('.status-select:not([style*="display: none"])');
+                const inputs = row.querySelectorAll('.details-input:not([style*="display: none"])');
+
+                selects.forEach(select => select.value = '齐全');
+                inputs.forEach(input => input.value = '');
+
+                const saveBtn = row.querySelector('.save-btn');
+                saveBtn.click();
+                closeCompleteConfirmModal();
+            };
+        });
+    });
+
+    function closeCompleteConfirmModal() {
+        document.getElementById('completeConfirmModal').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    // Click outside to close modal
+    window.onclick = function(event) {
+        if (event.target === document.getElementById('completeConfirmModal')) {
+            closeCompleteConfirmModal();
+        }
+    };
+});
+</script>
+{% endblock %}

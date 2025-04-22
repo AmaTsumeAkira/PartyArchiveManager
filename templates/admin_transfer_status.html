@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}管理转接状态 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">管理转接状态</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">查看和更新用户转接状态</p>
+            </div>
+        </div>
+    </header>
+
+    <!-- Filter Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 animate-fadeIn">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">筛选用户</h2>
+        <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
+            <div class="flex items-center space-x-2">
+                <label for="identity_filter" class="text-sm font-medium text-gray-700 dark:text-gray-300">按政治面貌筛选：</label>
+                <div class="relative w-48">
+                    <select id="identity_filter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                        <option value="">全部</option>
+                        {% for identity in identities %}
+                        <option value="{{ identity }}">{{ identity }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <label for="transfer_status_filter" class="text-sm font-medium text-gray-700 dark:text-gray-300">按转接状态筛选：</label>
+                <div class="relative w-48">
+                    <select id="transfer_status_filter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                        <option value="">全部</option>
+                        <option value="未开始">未开始</option>
+                        <option value="处理中">处理中</option>
+                        <option value="已完成">已完成</option>
+                        <option value="已放弃">已放弃</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transfer Status Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">用户转接状态</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                    <tr>
+                        <th class="py-3 px-4 min-w-[100px]">学号</th>
+                        <th class="py-3 px-4 min-w-[100px]">姓名</th>
+                        <th class="py-3 px-4 min-w-[100px]">班级</th>
+                        <th class="py-3 px-4 min-w-[120px]">政治面貌</th>
+                        <th class="py-3 px-4 min-w-[120px]">转接状态</th>
+                        <th class="py-3 px-4 min-w-[120px]">接收状态</th>
+                        <th class="py-3 px-4 min-w-[150px]">转出时间</th>
+                        <th class="py-3 px-4 min-w-[150px]">接收地</th>
+                        <th class="py-3 px-4 min-w-[100px]">进度</th>
+                        <th class="py-3 px-4 min-w-[100px]">操作</th>
+                    </tr>
+                </thead>
+                <tbody id="userTable">
+                    {% for user in users %}
+                    <tr data-identities="{{ user.identity_names|join(',') }}" data-transfer-status="{{ user.transfer_status }}" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition">
+                        <td class="py-3 px-4 truncate">{{ user.student_id }}</td>
+                        <td class="py-3 px-4 truncate">{{ user.name }}</td>
+                        <td class="py-3 px-4 truncate">{{ user.class_name }}</td>
+                        <td class="py-3 px-4 truncate">{{ user.identity_names|join('、') }}</td>
+                        <td class="py-3 px-4">
+                            <div class="relative">
+                                <select name="transfer_status" class="transfer-status w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                                    <option value="未开始" {% if user.transfer_status == '未开始' %}selected{% endif %}>未开始</option>
+                                    <option value="处理中" {% if user.transfer_status == '处理中' %}selected{% endif %}>处理中</option>
+                                    <option value="已完成" {% if user.transfer_status == '已完成' %}selected{% endif %}>已完成</option>
+                                    <option value="已放弃" {% if user.transfer_status == '已放弃' %}selected{% endif %}>已放弃</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            <div class="relative">
+                                <select name="receive_status" class="receive-status w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                                    <option value="未开始" {% if user.receive_status == '未开始' %}selected{% endif %}>未开始</option>
+                                    <option value="待确认" {% if user.receive_status == '待确认' %}selected{% endif %}>待确认</option>
+                                    <option value="已确认" {% if user.receive_status == '已确认' %}selected{% endif %}>已确认</option>
+                                    <option value="已放弃" {% if user.receive_status == '已放弃' %}selected{% endif %}>已放弃</option>
+                                </select>
+                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            <input type="date" name="transfer_date" class="transfer-date w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="{{ user.transfer_date or '' }}">
+                        </td>
+                        <td class="py-3 px-4">
+                            <input type="text" name="receiver" class="receiver w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="{{ user.receiver or '' }}">
+                        </td>
+                        <td class="py-3 px-4">
+                            <input type="number" name="progress" class="progress w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="{{ user.progress|default(0) }}" min="0" max="100">
+                        </td>
+                        <td class="py-3 px-4">
+                            <button class="update-btn bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center" data-user-id="{{ user.id }}">
+                                更新
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function filterTable() {
+    const selectedIdentity = document.getElementById('identity_filter').value.toLowerCase();
+    const selectedTransferStatus = document.getElementById('transfer_status_filter').value.toLowerCase();
+    const rows = document.querySelectorAll('#userTable tr');
+
+    rows.forEach(row => {
+        const identities = row.getAttribute('data-identities').toLowerCase();
+        const transferStatus = row.getAttribute('data-transfer-status').toLowerCase();
+        const matchesIdentity = !selectedIdentity || identities.includes(selectedIdentity);
+        const matchesTransferStatus = !selectedTransferStatus || transferStatus === selectedTransferStatus;
+
+        if (matchesIdentity && matchesTransferStatus) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+document.getElementById('identity_filter').addEventListener('change', filterTable);
+document.getElementById('transfer_status_filter').addEventListener('change', filterTable);
+
+document.querySelectorAll('.update-btn').forEach(button => {
+    button.addEventListener('click', function() {
+        const userId = this.getAttribute('data-user-id');
+        const row = this.closest('tr');
+        const transferStatus = row.querySelector('.transfer-status').value;
+        const receiveStatus = row.querySelector('.receive-status').value;
+        const receiver = row.querySelector('.receiver').value;
+        const progress = row.querySelector('.progress').value;
+        const transferDate = row.querySelector('.transfer-date').value;
+
+        fetch('{{ url_for("admin_update_transfer_status") }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `user_id=${userId}&transfer_status=${transferStatus}&receive_status=${receiveStatus}&receiver=${receiver}&progress=${progress}&transfer_date=${transferDate}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            const message = document.createElement('div');
+            message.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 animate-fadeIn flash-message';
+            if (data.success) {
+                message.className += ' bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100';
+                message.innerHTML = `
+                    <i class="fas fa-check-circle"></i>
+                    <span class="flex-1">转接状态更新成功</span>
+                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                `;
+            } else {
+                message.className += ' bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
+                message.innerHTML = `
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span class="flex-1">更新失败：${data.error}</span>
+                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                `;
+            }
+            document.body.appendChild(message);
+            setTimeout(() => message.remove(), 5000);
+        })
+        .catch(error => {
+            const errorMessage = document.createElement('div');
+            errorMessage.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100 animate-fadeIn flash-message';
+            errorMessage.innerHTML = `
+                <i class="fas fa-exclamation-circle"></i>
+                <span class="flex-1">请求失败：${error}</span>
+                <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+            `;
+            document.body.appendChild(errorMessage);
+            setTimeout(() => errorMessage.remove(), 5000);
+        });
+    });
+});
+</script>
+{% endblock %}

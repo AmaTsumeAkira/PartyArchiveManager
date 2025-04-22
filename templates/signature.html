@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}签名确认 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="w-full px-4 py-6">
+    <!-- 警告标题 -->
+    <header class="mb-6 animate-fadeIn">
+        <div class="flex items-center justify-center text-red-600 dark:text-red-400">
+            <i class="fas fa-exclamation-triangle text-2xl mr-2"></i>
+            <h1 class="text-xl font-bold text-center">放弃转接确认</h1>
+        </div>
+        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400 text-center">请仔细阅读以下警告信息</p>
+    </header>
+
+    <!-- 严重警告卡片 -->
+    <div class="bg-red-100 dark:bg-red-900 border-l-4 border-red-500 dark:border-red-400 p-4 mb-6 rounded-lg animate-fadeIn">
+        <div class="flex items-start">
+            <div class="ml-3">
+                <div class="mt-2 text-sm text-red-700 dark:text-red-300 space-y-2">
+                    <p>您正在执行放弃档案转接操作，此操作将产生以下后果：</p>
+                    <ul class="list-disc pl-5 space-y-1">
+                        <li>您的档案转接流程将立即终止</li>
+                        <li>所有已提交的材料将不再处理</li>
+                        <li>此操作<b class="font-bold">不可撤销</b></li>
+                        <li><b class="font-bold">自愿放弃入党积极分子身份</b></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 签名区域 -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5 mb-6 animate-fadeIn">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
+            <i class="fas fa-signature mr-2 text-red-600 dark:text-red-400"></i> 签名确认
+        </h2>
+        
+        <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            <p>请在下方区域签名以确认您已了解上述警告并自愿放弃档案转接。</p>
+        </div>
+        
+        <!-- 签名画布 -->
+        <div class="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg mb-4 bg-white dark:bg-gray-700">
+            <canvas id="signatureCanvas" class="w-full h-48 touch-none"></canvas>
+        </div>
+        
+        <div class="flex justify-between mb-6">
+            <button id="clearCanvas" type="button" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg hover:bg-gray-300 dark:hover:transition flex items-center">
+                <i class="fas fa-eraser mr-2"></i> 清除签名
+            </button>
+            <div class="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                <i class="fas fa-info-circle mr-1"></i> 请签写本人真实姓名
+            </div>
+        </div>
+        
+        <!-- 确认复选框 -->
+        <div class="space-y-3 mb-6">
+            <div class="flex items-start">
+                <input type="checkbox" id="confirm1" class="mt-1 h-4 w-4 text-red-600 dark:text-red-400 rounded border-gray-300 dark:border-gray-600 focus:ring-red-500 dark:bg-gray-700">
+                <label for="confirm1" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    我已了解放弃转接的后果
+                </label>
+            </div>
+            <div class="flex items-start">
+                <input type="checkbox" id="confirm2" class="mt-1 h-4 w-4 text-red-600 dark:text-red-400 rounded border-gray-300 dark:border-gray-600 focus:ring-red-500 dark:bg-gray-700">
+                <label for="confirm2" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    我确认自愿放弃入党积极分子身份
+                </label>
+            </div>
+            <div class="flex items-start">
+                <input type="checkbox" id="confirm3" class="mt-1 h-4 w-4 text-red-600 dark:text-red-400 rounded border-gray-300 dark:border-gray-600 focus:ring-red-500 dark:bg-gray-700">
+                <label for="confirm3" class="ml-2 block text-sm text-gray-700 dark:text-gray-300">
+                    我明白此操作不可撤销
+                </label>
+            </div>
+        </div>
+        
+        <!-- 提交按钮 -->
+        <form id="signatureForm" method="POST" action="{{ url_for('signature') }}">
+            <input type="hidden" id="signatureData" name="signature">
+            <button type="submit" id="submitBtn" class="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-4 rounded-lg transition duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                <i class="fas fa-exclamation-triangle mr-2"></i> 确认放弃转接
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 引入签名JS文件 -->
+<script src="{{ url_for('static', filename='js/signature.js') }}"></script>
+
+<script>
+// 额外的表单验证逻辑
+document.addEventListener('DOMContentLoaded', function() {
+    const submitBtn = document.getElementById('submitBtn');
+    const confirm1 = document.getElementById('confirm1');
+    const confirm2 = document.getElementById('confirm2');
+    const confirm3 = document.getElementById('confirm3');
+    
+    // 检查所有确认框是否已勾选和签名是否为空
+    function checkConfirmations() {
+        const canvas = document.getElementById('signatureCanvas');
+        const isCanvasEmpty = isCanvasBlank(canvas);
+        submitBtn.disabled = !(confirm1.checked && confirm2.checked && confirm3.checked) || isCanvasEmpty;
+    }
+    
+    // 检查画布是否为空
+    function isCanvasBlank(canvas) {
+        const blank = document.createElement('canvas');
+        blank.width = canvas.width;
+        blank.height = canvas.height;
+        return canvas.toDataURL() === blank.toDataURL();
+    }
+    
+    // 监听确认框变化
+    [confirm1, confirm2, confirm3].forEach(checkbox => {
+        checkbox.addEventListener('change', checkConfirmations);
+    });
+    
+    // 监听签名变化（通过定期检查）
+    setInterval(checkConfirmations, 500);
+});
+</script>
+{% endblock %}

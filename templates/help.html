@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}帮助中心{% endblock %}
+{% block content %}
+<div class="w-full px-4 py-6">
+    <!-- 头部 -->
+    <header class="mb-6 animate-fadeIn">
+        <h1 class="text-xl font-bold text-gray-900 dark:text-gray-100 text-center">帮助中心</h1>
+        <p class="mt-1 text-sm text-gray-500 dark:text-gray-400 text-center">档案转交相关资讯</p>
+    </header>
+
+    <!-- 帮助内容 -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-5 animate-fadeIn">
+        <div class="text-gray-700 dark:text-gray-300 whitespace-pre-line text-sm">
+            {{ help_content.content or '暂无帮助内容，请联系管理员。' }}
+        </div>
+
+        <div class="mt-6">
+            <a href="{{ url_for('transfer') }}" class="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                <i class="fas fa-arrow-left mr-2"></i>返回
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

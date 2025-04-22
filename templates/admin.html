@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% block title %}档案转接系统 - 仪表盘{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <!-- Metrics Cards -->
+    <div class="grid grid-cols-1 gap-6 mb-8 md:grid-cols-3">
+        <!-- Total Users -->
+        <div class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg animate-fadeIn transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">用户总数</p>
+                    <p class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{ metrics.total_users }}</p>
+                </div>
+                <div class="p-3 rounded-full bg-red-100 dark:bg-red-900 text-red-600 dark:text-red-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Material Completeness -->
+        <div class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg animate-fadeIn transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">材料平均完整度</p>
+                    <p class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{ "%.1f"|format(metrics.material_completeness) }}%</p>
+                </div>
+                <div class="p-3 rounded-full bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Processing Transfers -->
+        <div class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg animate-fadeIn transition-all duration-300">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">处理中转接</p>
+                    {% for status in metrics.transfer_statuses %}
+                        {% if status.transfer_status == '处理中' %}
+                            <p class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{ status.count }}</p>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <div class="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path>
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Abandoned Users -->
+    <div class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg animate-fadeIn transition-all duration-300 mb-8">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">已放弃用户</h3>
+        {% if abandoned_users %}
+        <table class="w-full text-left">
+            <thead>
+                <tr class="bg-gray-100 dark:bg-gray-700">
+                    <th class="p-2">学号</th>
+                    <th class="p-2">姓名</th>
+                    <th class="p-2">放弃时间</th>
+                    <th class="p-2">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in abandoned_users %}
+                <tr class="border-b dark:border-gray-600">
+                    <td class="p-2">{{ user.student_id }}</td>
+                    <td class="p-2">{{ user.name }}</td>
+                    <td class="p-2">{{ user.abandoned_at }}</td>
+                    <td class="p-2">
+                        <button onclick="viewSignature('{{ user.id }}', '{{ user.name }}')" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition">
+                            查看签字
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p class="text-gray-500 dark:text-gray-400">暂无已放弃用户。</p>
+        {% endif %}
+    </div>
+
+    <!-- Announcement and Contact Info -->
+    <div class="grid grid-cols-1 gap-6 mb-8 lg:grid-cols-2">
+        <!-- Announcement -->
+        <div class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg animate-fadeIn transition-all duration-300">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">系统公告</h3>
+                <button onclick="openModal('announcement-modal')" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="prose max-w-none text-gray-700 dark:text-gray-300">
+                {% if announcement.content %}
+                    {{ announcement.content|safe }}
+                {% else %}
+                    <p class="text-gray-500 dark:text-gray-400">暂无公告</p>
+                {% endif %}
+                {% if announcement.update_date %}
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-2">更新时间: {{ announcement.update_date }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Contact Info -->
+        <div class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg animate-fadeIn transition-all duration-300">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">联系方式</h3>
+                <button onclick="openModal('contact-modal')" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="space-y-2">
+                {% if contact_info.phone %}
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-gray-500 dark:text-gray-400 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path>
+                        </svg>
+                        <span class="text-gray-700 dark:text-gray-300">{{ contact_info.phone }}</span>
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 dark:text-gray-400">暂无联系方式</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Content -->
+    <div class="p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg animate-fadeIn transition-all duration-300 mb-8">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">帮助内容</h3>
+            <button onclick="openModal('help-modal')" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 dark:hover:text-indigo-300 transition">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                </svg>
+            </button>
+        </div>
+        <div class="prose max-w-none text-gray-700 dark:text-gray-300">
+            {% if help_content.content %}
+                {{ help_content.content|safe }}
+            {% else %}
+                <p class="text-gray-500 dark:text-gray-400">暂无帮助内容</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Announcement Modal -->
+<div id="announcement-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden animate-fadeIn">
+    <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full p-6 shadow-2xl transition-all duration-300">
+        <button onclick="closeModal('announcement-modal')" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">更新公告</h3>
+        <form action="{{ url_for('update_announcement_route') }}" method="POST">
+            <div class="mb-4">
+                <label for="announcement-content" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">公告内容</label>
+                <textarea id="announcement-content" name="content" rows="8" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">{{ announcement.content if announcement.content }}</textarea>
+            </div>
+            <div class="mb-4">
+                <label for="update_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">更新时间</label>
+                <input type="date" id="update_date" name="update_date" value="{{ announcement.update_date if announcement.update_date }}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div class="flex justify-end">
+                <button type="button" onclick="closeModal('announcement-modal')" class="mr-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Contact Modal -->
+<div id="contact-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden animate-fadeIn">
+    <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-2xl transition-all duration-300">
+        <button onclick="closeModal('contact-modal')" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">更新联系方式</h3>
+        <form method="POST" action="{{ url_for('update_contact') }}">
+            <div class="mb-4">
+                <label for="phone" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">联系电话</label>
+                <input type="text" id="phone" name="phone" value="{{ contact_info.phone if contact_info.phone }}" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div class="flex justify-end">
+                <button type="button" onclick="closeModal('contact-modal')" class="mr-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Help Modal -->
+<div id="help-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden animate-fadeIn">
+    <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-2xl w-full p-6 shadow-2xl transition-all duration-300">
+        <button onclick="closeModal('help-modal')" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">更新帮助内容</h3>
+        <form method="POST" action="{{ url_for('update_help') }}">
+            <div class="mb-4">
+                <label for="help-content" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">帮助内容</label>
+                <textarea id="help-content" name="content" rows="8" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">{{ help_content.content if help_content.content }}</textarea>
+            </div>
+            <div class="flex justify-end">
+                <button type="button" onclick="closeModal('help-modal')" class="mr-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-all duration-200">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Signature Modal -->
+<div id="signatureModal" class="fixed inset-0 z-50 bg-opacity-50 hidden flex items-center justify-center animate-fadeIn">
+    <div class="relative bg-white dark:bg-gray-800 rounded-lg max-w-md w-full p-6 shadow-2xl transition-all duration-300">
+        <button onclick="closeSignatureModal()" class="absolute top-4 right-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">用户签字 - <span id="signatureUserName"></span></h3>
+        <div id="signatureContent" class="text-center">
+            <p id="noSignature" class="text-gray-500 dark:text-gray-400 hidden">无签字记录</p>
+            <img id="signatureImg" class="max-w-full h-auto border border-gray-300 dark:border-gray-600 hidden" alt="用户签字">
+            <p id="signatureTime" class="text-sm text-gray-500 dark:text-gray-400 mt-2 hidden"></p>
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button onclick="closeSignatureModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                关闭
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Modal handling
+    function openModal(id) {
+        document.getElementById(id).classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeModal(id) {
+        document.getElementById(id).classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    // Click outside to close modal
+    window.onclick = function(event) {
+        if (event.target === document.getElementById('announcement-modal') || 
+            event.target === document.getElementById('contact-modal') ||
+            event.target === document.getElementById('help-modal') ||
+            event.target === document.getElementById('signatureModal')) {
+            closeModal(event.target.id);
+        }
+    }
+
+    // Signature handling
+    function viewSignature(userId, userName) {
+        fetch('{{ url_for("get_signature", user_id=0) }}'.replace('0', userId))
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('signatureUserName').textContent = userName;
+                const modal = document.getElementById('signatureModal');
+                const noSignature = document.getElementById('noSignature');
+                const signatureImg = document.getElementById('signatureImg');
+                const signatureTime = document.getElementById('signatureTime');
+                
+                if (data.success) {
+                    noSignature.classList.add('hidden');
+                    signatureImg.src = data.signature_data;
+                    signatureImg.classList.remove('hidden');
+                    signatureTime.textContent = '签字时间: ' + data.created_at;
+                    signatureTime.classList.remove('hidden');
+                } else {
+                    noSignature.classList.remove('hidden');
+                    signatureImg.classList.add('hidden');
+                    signatureTime.classList.add('hidden');
+                }
+                
+                modal.classList.remove('hidden');
+            })
+            .catch(error => {
+                alert('加载签字失败: ' + error);
+            });
+    }
+
+    function closeSignatureModal() {
+        document.getElementById('signatureModal').classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    // Initialize doughnut chart
+    document.addEventListener('DOMContentLoaded', function() {
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        const statusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: [{% for s in metrics.transfer_statuses %}'{{ s.transfer_status }}',{% endfor %}],
+                datasets: [{
+                    data: [{% for s in metrics.transfer_statuses %}{{ s.count }},{% endfor %}],
+                    backgroundColor: [
+                        '#f87171', // 已放弃 - red-400
+                        '#fbbf24', // 处理中 - amber-400
+                        '#34d399', // 已完成 - emerald-400
+                        '#60a5fa', // 待处理 - blue-400
+                        '#a78bfa'  // 其他 - violet-400
+                    ],
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            color: document.documentElement.classList.contains('dark') ? '#E5E7EB' : '#374151',
+                            font: {
+                                size: 14
+                            },
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        enabled: true,
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                cutout: '70%',
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                }
+            }
+        });
+    });
+</script>
+{% endblock %}

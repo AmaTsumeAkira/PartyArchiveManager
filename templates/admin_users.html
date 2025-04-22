@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}用户管理 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">用户管理</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理用户信息和权限</p>
+            </div>
+            <button onclick="showAddUserModal()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center">
+                <i class="fas fa-user-plus mr-2"></i> 添加用户
+            </button>
+        </div>
+    </header>
+
+    <!-- User Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100">用户列表</h2>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                    <tr>
+                        <th class="py-3 px-4">学号</th>
+                        <th class="py-3 px-4">姓名</th>
+                        <th class="py-3 px-4">班级</th>
+                        <th class="py-3 px-4">批次</th>
+                        <th class="py-3 px-4">身份</th>
+                        <th class="py-3 px-4">培养人</th>
+                        <th class="py-3 px-4">管理员</th>
+                        <th class="py-3 px-4">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in users %}
+                    <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover: transition">
+                        <td class="py-3 px-4">{{ user.student_id }}</td>
+                        <td class="py-3 px-4">{{ user.name }}</td>
+                        <td class="py-3 px-4">{{ user.class_name }}</td>
+                        <td class="py-3 px-4">{{ user.batch or '无' }}</td>
+                        <td class="py-3 px-4">{{ user.identity_names|join(', ') or '无' }}</td>
+                        <td class="py-3 px-4">
+                            {% for cultivator in cultivators %}
+                                {% if cultivator.id in user.cultivator_ids %}
+                                    {{ cultivator.name|add_role(cultivators) }}{% if not loop.last %}, {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                            {% if user.is_admin %} bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 
+                            {% else %} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 {% endif %}">
+                                {{ '是' if user.is_admin else '否' }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 space-x-2">
+                            <button onclick='showEditUserModal({{ user|tojson }})' 
+                                    class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition">
+                                <i class="fas fa-edit mr-1"></i> 编辑
+                            </button>
+                            <button onclick="showDeleteConfirmModal('{{ user.id }}', '{{ user.name }}')" 
+                                    class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition">
+                                <i class="fas fa-trash mr-1"></i> 删除
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div id="addUserModal" class="fixed inset-0  bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-2xl mx-auto overflow-y-auto" style="max-height: 90vh;">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">添加用户</h3>
+            <button onclick="closeAddUserModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <form action="{{ url_for('admin_users') }}" method="POST">
+            <input type="hidden" name="action" value="add">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">学号</label>
+                    <input type="text" name="student_id" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">姓名</label>
+                    <input type="text" name="name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密码</label>
+                    <input type="password" name="password" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">班级</label>
+                    <input type="text" name="class_name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">批次</label>
+                    <input type="text" name="batch" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">身份</label>
+                    <div class="relative">
+                        <select name="identities" multiple class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                            {% for identity in identities %}
+                            <option value="{{ identity.id }}">{{ identity.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">培养人</label>
+                    <div class="relative">
+                        <select name="cultivators" multiple class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                            {% for cultivator in cultivators %}
+                            <option value="{{ cultivator.id }}">{{ cultivator.name|add_role(cultivators) }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4 flex items-center">
+                    <input type="checkbox" name="is_admin" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600">
+                    <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">管理员</label>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-4">
+                <button type="button" onclick="closeAddUserModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    添加
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div id="editUserModal" class="fixed inset-0  bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-2xl mx-auto overflow-y-auto" style="max-height: 90vh;">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">编辑用户</h3>
+            <button onclick="closeEditUserModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <form action="{{ url_for('admin_users') }}" method="POST">
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="user_id" id="edit_user_id">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">学号</label>
+                    <input type="text" name="student_id" id="edit_student_id" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">姓名</label>
+                    <input type="text" name="name" id="edit_name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">密码（留空不更改）</label>
+                    <input type="password" name="password" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">班级</label>
+                    <input type="text" name="class_name" id="edit_class_name" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" required>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">批次</label>
+                    <input type="text" name="batch" id="edit_batch" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">身份</label>
+                    <div class="relative">
+                        <select name="identities" id="edit_identities" multiple class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                            {% for identity in identities %}
+                            <option value="{{ identity.id }}">{{ identity.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">培养人</label>
+                    <div class="relative">
+                        <select name="cultivators" id="edit_cultivators" multiple class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                            {% for cultivator in cultivators %}
+                            <option value="{{ cultivator.id }}">{{ cultivator.name|add_role(cultivators) }}</option>
+                            {% endfor %}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-4 flex items-center">
+                    <input type="checkbox" name="is_admin" id="edit_is_admin" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600">
+                    <label class="ml-2 text-sm text-gray-700 dark:text-gray-300">管理员</label>
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-4">
+                <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    保存
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteConfirmModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认删除</h3>
+            <button onclick="closeDeleteConfirmModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">确认删除用户 <span id="deleteUserName" class="font-semibold"></span> 吗？此操作不可撤销。</p>
+        <form id="deleteUserForm" action="{{ url_for('admin_users') }}" method="POST">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="user_id" id="delete_user_id">
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="closeDeleteConfirmModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:">
+                    取消
+                </button>
+                <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
+                    删除
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function showAddUserModal() {
+    document.getElementById('addUserModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeAddUserModal() {
+    document.getElementById('addUserModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function showEditUserModal(user) {
+    document.getElementById('edit_user_id').value = user.id;
+    document.getElementById('edit_student_id').value = user.student_id;
+    document.getElementById('edit_name').value = user.name;
+    document.getElementById('edit_class_name').value = user.class_name;
+    document.getElementById('edit_batch').value = user.batch || '';
+    document.getElementById('edit_is_admin').checked = user.is_admin;
+
+    // Set identities
+    const identitySelect = document.getElementById('edit_identities');
+    for (let option of identitySelect.options) {
+        option.selected = user.identity_ids.includes(parseInt(option.value));
+    }
+
+    // Set cultivators
+    const cultivatorSelect = document.getElementById('edit_cultivators');
+    for (let option of cultivatorSelect.options) {
+        option.selected = user.cultivator_ids.includes(parseInt(option.value));
+    }
+
+    document.getElementById('editUserModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeEditUserModal() {
+    document.getElementById('editUserModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function showDeleteConfirmModal(userId, userName) {
+    document.getElementById('delete_user_id').value = userId;
+    document.getElementById('deleteUserName').textContent = userName;
+    document.getElementById('deleteConfirmModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeDeleteConfirmModal() {
+    document.getElementById('deleteConfirmModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+// Click outside to close modals
+window.onclick = function(event) {
+    if (event.target === document.getElementById('addUserModal') || 
+        event.target === document.getElementById('editUserModal') || 
+        event.target === document.getElementById('deleteConfirmModal')) {
+        closeAddUserModal();
+        closeEditUserModal();
+        closeDeleteConfirmModal();
+    }
+}
+</script>
+{% endblock %}

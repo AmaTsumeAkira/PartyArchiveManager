@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}登录{% endblock %}
+{% block content %}
+<div class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+    <!-- Logo/Header -->
+    <div class="text-center mb-6">
+        <div class="flex justify-center mb-3">
+            <div class="w-12 h-12 bg-red-100 dark:bg-red-900 rounded-full flex items-center justify-center">
+                <i class="fas fa-archive text-red-600 dark:text-red-300 text-xl"></i>
+            </div>
+        </div>
+        <h1 class="text-2xl font-bold text-red-600 dark:text-red-400">档案转接查询系统</h1>
+        <p class="text-gray-500 dark:text-gray-400 text-sm mt-1">请输入您的登录凭证</p>
+    </div>
+
+    <!-- 登录表单 -->
+    <form method="POST" action="{{ url_for('login') }}">
+        <div class="mb-4">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="student_id">
+                <i class="fas fa-id-card mr-1 text-gray-500"></i> 学号
+            </label>
+            <input class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-gray-100 transition" 
+                   type="text" id="student_id" name="student_id" placeholder="请输入学号" required>
+        </div>
+        
+        <div class="mb-6">
+            <label class="block text-gray-700 dark:text-gray-300 text-sm font-medium mb-2" for="password">
+                <i class="fas fa-lock mr-1 text-gray-500"></i> 密码
+            </label>
+            <input class="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 dark:bg-gray-700 dark:text-gray-100 transition" 
+                   type="password" id="password" name="password" placeholder="请输入密码" required>
+        </div>
+
+        <button class="w-full bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg font-medium transition duration-200 flex items-center justify-center" type="submit">
+            <i class="fas fa-sign-in-alt mr-2"></i>登录
+        </button>
+    </form>
+
+    <!-- 底部链接 -->
+    <!-- <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-center">
+        <a href="#" class="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 transition">
+            <i class="fas fa-question-circle mr-1"></i>忘记密码?
+        </a>
+    </div> -->
+</div>
+{% endblock %}
