@@ -11,25 +11,37 @@
             </div>
         </div>
     </header>
-
-    <!-- Identity Tabs -->
-    <div class="mb-6">
-        <div class="border-b border-gray-200 dark:border-gray-700">
-            <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
-                        data-identity-id="" data-tab="all">
-                    所有身份
-                </button>
-                {% for identity in checklist.identities %}
-                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500"
-                        data-identity-id="{{ identity.id }}" data-tab="{{ identity.id }}">
-                    {{ identity.name }}
-                </button>
-                {% endfor %}
-            </nav>
+    <!-- Filter Controls -->
+    <div class="mb-6 flex flex-wrap items-center gap-4">
+        <!-- Identity Tabs -->
+        <div class="flex-1">
+            <div class="border-b border-gray-200 dark:border-gray-700">
+                <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+                            data-identity-id="" data-tab="all">
+                        所有身份
+                    </button>
+                    {% for identity in checklist.identities %}
+                    <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-200 dark:hover:border-gray-500"
+                            data-identity-id="{{ identity.id }}" data-tab="{{ identity.id }}">
+                        {{ identity.name }}
+                    </button>
+                    {% endfor %}
+                </nav>
+            </div>
+        </div>
+        <!-- Completeness Filter -->
+        <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-600 dark:text-gray-300">资料齐全度:</span>
+            <select id="completenessFilter" class="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 text-sm">
+                <option value="all">全部</option>
+                <option value="complete">齐全</option>
+                <option value="incomplete">不齐全</option>
+                <option value="partial">部分齐全</option>
+                <option value="pending">待审核</option>
+            </select>
         </div>
     </div>
-
     <!-- Checklist Table -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
         <div class="overflow-x-auto">
@@ -48,16 +60,18 @@
                 </thead>
                 <tbody>
                     {% for entry in checklist.checklist %}
-                    <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition identity-{{ entry.user.identity_ids|join(' identity-') }}" id="user-{{ entry.user.id }}">
+                    <tr class="border-b dark:border-gray-700 hover:bg-opacity-80 transition identity-{{ entry.user.identity_ids|join(' identity-') }} completeness-{{ entry.completeness }}"
+                        id="user-{{ entry.user.id }}"
+                        data-completeness="{{ entry.completeness }}">
                         <td class="py-3 px-4 truncate">{{ entry.user.student_id }}</td>
-                        <td class="py-3 px-4 truncate sticky left-0 bg-white dark:bg-gray-800 z-10">{{ entry.user.name }}</td>
+                        <td class="py-3 px-4 truncate sticky left-0 z-10">{{ entry.user.name }}</td>
                         <td class="py-3 px-4 truncate">{{ entry.user.batch or '未分配' }}</td>
                         <td class="py-3 px-4 truncate">{{ entry.user.identity_names|join('、') }}</td>
                         {% for material in entry.materials %}
-                        <td class="py-3 px-4 material-col" data-material-id="{{ material.id }}" data-identity-ids="{{ material.identity_ids|join(',') }}">
+                        <td class="py-3 px-4 material-col" data-material-id="{{ material.id }}" data-identity-ids="{{ checklist.materials[loop.index0].identity_ids|join(',') }}">
                             <div class="flex items-center space-x-2">
                                 <div class="relative w-24">
-                                    <select name="status" class="status-select w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none text-sm"
+                                    <select name="status" class="status-select w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none text-sm"
                                             data-user-id="{{ entry.user.id }}" data-material-id="{{ material.id }}">
                                         <option value="" {% if not material.status %}selected{% endif %}>未录入</option>
                                         <option value="齐全" {% if material.status == '齐全' %}selected{% endif %}>齐全</option>
@@ -76,7 +90,7 @@
                             </div>
                         </td>
                         {% endfor %}
-                        <td class="py-3 px-4 sticky right-0 bg-white dark:bg-gray-800 z-10">
+                        <td class="py-3 px-4 sticky right-0 z-10">
                             <div class="flex flex-nowrap items-center space-x-1">
                                 <button class="save-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-md shadow-sm transition duration-200 flex items-center text-xs"
                                         data-user-id="{{ entry.user.id }}">
@@ -95,9 +109,8 @@
         </div>
     </div>
 </div>
-
 <!-- Complete Confirmation Modal -->
-<div id="completeConfirmModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
+<div id="completeConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认一键补全</h3>
@@ -118,8 +131,114 @@
         </div>
     </div>
 </div>
+<style>
+    /* 资料齐全度颜色标识 */
+    tr.completeness-complete {
+        background-color: rgba(16, 185, 129, 0.1) !important;
+    }
+    tr.completeness-complete:hover {
+        background-color: rgba(16, 185, 129, 0.15) !important;
+    }
+    tr.completeness-complete td.sticky {
+        background-color: rgba(16, 185, 129, 0.1) !important;
+    }
+    tr.completeness-complete td.sticky:hover {
+        background-color: rgba(16, 185, 129, 0.15) !important;
+    }
+    
+    tr.completeness-incomplete {
+        background-color: rgba(239, 68, 68, 0.1) !important;
+    }
+    tr.completeness-incomplete:hover {
+        background-color: rgba(239, 68, 68, 0.15) !important;
+    }
+    tr.completeness-incomplete td.sticky {
+        background-color: rgba(239, 68, 68, 0.1) !important;
+    }
+    tr.completeness-incomplete td.sticky:hover {
+        background-color: rgba(239, 68, 68, 0.15) !important;
+    }
+    
+    tr.completeness-partial {
+        background-color: rgba(245, 158, 11, 0.1) !important;
+    }
+    tr.completeness-partial:hover {
+        background-color: rgba(245, 158, 11, 0.15) !important;
+    }
+    tr.completeness-partial td.sticky {
+        background-color: rgba(245, 158, 11, 0.1) !important;
+    }
+    tr.completeness-partial td.sticky:hover {
+        background-color: rgba(245, 158, 11, 0.15) !important;
+    }
+    
+    tr.completeness-pending {
+        background-color: rgba(59, 130, 246, 0.1) !important;
+    }
+    tr.completeness-pending:hover {
+        background-color: rgba(59, 130, 246, 0.15) !important;
+    }
+    tr.completeness-pending td.sticky {
+        background-color: rgba(59, 130, 246, 0.1) !important;
+    }
+    tr.completeness-pending td.sticky:hover {
+        background-color: rgba(59, 130, 246, 0.15) !important;
+    }
+    
+    /* 暗色模式适配 */
+    .dark tr.completeness-complete {
+        background-color: rgba(16, 185, 129, 0.2) !important;
+    }
+    .dark tr.completeness-complete:hover {
+        background-color: rgba(16, 185, 129, 0.25) !important;
+    }
+    .dark tr.completeness-complete td.sticky {
+        background-color: rgba(16, 185, 129, 0.2) !important;
+    }
+    .dark tr.completeness-complete td.sticky:hover {
+        background-color: rgba(16, 185, 129, 0.25) !important;
+    }
+    
+    .dark tr.completeness-incomplete {
+        background-color: rgba(239, 68, 68, 0.2) !important;
+    }
+    .dark tr.completeness-incomplete:hover {
+        background-color: rgba(239, 68, 68, 0.25) !important;
+    }
+    .dark tr.completeness-incomplete td.sticky {
+        background-color: rgba(239, 68, 68, 0.2) !important;
+    }
+    .dark tr.completeness-incomplete td.sticky:hover {
+        background-color: rgba(239, 68, 68, 0.25) !important;
+    }
+    
+    .dark tr.completeness-partial {
+        background-color: rgba(245, 158, 11, 0.2) !important;
+    }
+    .dark tr.completeness-partial:hover {
+        background-color: rgba(245, 158, 11, 0.25) !important;
+    }
+    .dark tr.completeness-partial td.sticky {
+        background-color: rgba(245, 158, 11, 0.2) !important;
+    }
+    .dark tr.completeness-partial td.sticky:hover {
+        background-color: rgba(245, 158, 11, 0.25) !important;
+    }
+    
+    .dark tr.completeness-pending {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+    }
+    .dark tr.completeness-pending:hover {
+        background-color: rgba(59, 130, 246, 0.25) !important;
+    }
+    .dark tr.completeness-pending td.sticky {
+        background-color: rgba(59, 130, 246, 0.2) !important;
+    }
+    .dark tr.completeness-pending td.sticky:hover {
+        background-color: rgba(59, 130, 246, 0.25) !important;
+    }
+</style>
 {% endblock %}
-
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
@@ -128,7 +247,6 @@ document.addEventListener('DOMContentLoaded', () => {
     tabButtons.forEach(button => {
         button.addEventListener('click', function() {
             const identityId = this.dataset.identityId;
-
             // Update tab styles
             tabButtons.forEach(btn => {
                 btn.classList.remove('border-indigo-500', 'text-indigo-600', 'dark:text-indigo-400', 'dark:border-indigo-400');
@@ -136,22 +254,36 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             this.classList.remove('border-transparent', 'text-gray-500', 'hover:text-gray-700', 'hover:border-gray-300', 'dark:text-gray-400', 'dark:hover:text-gray-200', 'dark:hover:border-gray-500');
             this.classList.add('border-indigo-500', 'text-indigo-600', 'dark:text-indigo-400', 'dark:border-indigo-400');
-
             // Filter rows by identity
-            const rows = document.querySelectorAll('tbody tr');
-            rows.forEach(row => {
-                row.style.display = (!identityId || row.classList.contains(`identity-${identityId}`)) ? '' : 'none';
-            });
-
-            // Filter material columns by identity
-            const materialCols = document.querySelectorAll('.material-col');
-            materialCols.forEach(col => {
-                const identityIds = col.dataset.identityIds ? col.dataset.identityIds.split(',') : [];
-                col.style.display = (!identityId || identityIds.length === 0 || identityIds.includes(identityId)) ? '' : 'none';
-            });
+            filterRows();
         });
     });
-
+    // Completeness Filter
+    const completenessFilter = document.getElementById('completenessFilter');
+    if (completenessFilter) {
+        completenessFilter.addEventListener('change', filterRows);
+    }
+    // Combined filter function
+    function filterRows() {
+        const identityId = document.querySelector('.tab-btn.border-indigo-500')?.dataset.identityId || '';
+        const completenessValue = completenessFilter ? completenessFilter.value : 'all';
+        const rows = document.querySelectorAll('tbody tr');
+        rows.forEach(row => {
+            const rowIdentityMatch = !identityId || row.classList.contains(`identity-${identityId}`);
+            const rowCompletenessMatch = completenessValue === 'all' || 
+                                      (completenessValue === 'complete' && row.classList.contains('completeness-complete')) ||
+                                      (completenessValue === 'incomplete' && row.classList.contains('completeness-incomplete')) ||
+                                      (completenessValue === 'partial' && row.classList.contains('completeness-partial')) ||
+                                      (completenessValue === 'pending' && row.classList.contains('completeness-pending'));
+            row.style.display = (rowIdentityMatch && rowCompletenessMatch) ? '' : 'none';
+        });
+        // Filter material columns by identity
+        const materialCols = document.querySelectorAll('.material-col');
+        materialCols.forEach(col => {
+            const identityIds = col.dataset.identityIds ? col.dataset.identityIds.split(',') : [];
+            col.style.display = (!identityId || identityIds.length === 0 || identityIds.includes(identityId)) ? '' : 'none';
+        });
+    }
     // Save Button
     document.querySelectorAll('.save-btn').forEach(button => {
         button.addEventListener('click', async (e) => {
@@ -160,12 +292,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const selects = row.querySelectorAll('.status-select:not([style*="display: none"])');
             const inputs = row.querySelectorAll('.details-input:not([style*="display: none"])');
             let success = true;
-
             for (let i = 0; i < selects.length; i++) {
                 const status = selects[i].value;
                 const details = inputs[i].value;
                 const materialId = selects[i].dataset.materialId;
-
                 if (status) {
                     const response = await fetch('{{ url_for("update_user_material") }}', {
                         method: 'POST',
@@ -183,7 +313,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 }
             }
-
+            // Update completeness class after saving
+            updateCompletenessClass(userId);
             const message = document.createElement('div');
             message.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 animate-fadeIn flash-message';
             if (success) {
@@ -205,18 +336,59 @@ document.addEventListener('DOMContentLoaded', () => {
             setTimeout(() => message.remove(), 5000);
         });
     });
-
+    // Function to update completeness class for a row
+    function updateCompletenessClass(userId) {
+        const row = document.getElementById(`user-${userId}`);
+        if (!row) return;
+        const selects = row.querySelectorAll('.status-select');
+        let completeCount = 0;
+        let pendingCount = 0;
+        let totalCount = 0;
+        selects.forEach(select => {
+            if (select.value === '齐全') completeCount++;
+            if (select.value === '待审核') pendingCount++;
+            if (select.value) totalCount++;
+        });
+        // Remove all completeness classes
+        row.classList.remove(
+            'completeness-complete',
+            'completeness-incomplete',
+            'completeness-partial',
+            'completeness-pending'
+        );
+        // Determine completeness status
+        let completeness = 'incomplete';
+        if (totalCount === 0) {
+            completeness = 'incomplete';
+        } else if (completeCount === selects.length) {
+            completeness = 'complete';
+        } else if (pendingCount > 0 && pendingCount === selects.length) {
+            completeness = 'pending';
+        } else if (completeCount > 0 || pendingCount > 0) {
+            completeness = 'partial';
+        }
+        // Add new completeness class
+        row.classList.add(`completeness-${completeness}`);
+        row.dataset.completeness = completeness;
+    }
+    // Initialize completeness classes for all rows
+    function initializeCompletenessClasses() {
+        document.querySelectorAll('tbody tr').forEach(row => {
+            const userId = row.id.replace('user-', '');
+            updateCompletenessClass(userId);
+        });
+    }
+    // Initialize on page load
+    initializeCompletenessClasses();
     // Modal functionality
     const completeConfirmModal = document.getElementById('completeConfirmModal');
     const closeModalBtn = document.getElementById('closeModalBtn');
     const cancelModalBtn = document.getElementById('cancelModalBtn');
     const confirmCompleteBtn = document.getElementById('confirmCompleteBtn');
-
     function closeCompleteConfirmModal() {
         completeConfirmModal.classList.add('hidden');
         document.body.classList.remove('overflow-hidden');
     }
-
     // Close modal when clicking X or Cancel button
     if (closeModalBtn) {
         closeModalBtn.addEventListener('click', closeCompleteConfirmModal);
@@ -224,21 +396,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (cancelModalBtn) {
         cancelModalBtn.addEventListener('click', closeCompleteConfirmModal);
     }
-
     // Close modal when clicking outside
     completeConfirmModal.addEventListener('click', (e) => {
         if (e.target === completeConfirmModal) {
             closeCompleteConfirmModal();
         }
     });
-
     // Complete Button
     document.querySelectorAll('.complete-btn').forEach(button => {
         button.addEventListener('click', function() {
             const userId = this.dataset.userId;
             completeConfirmModal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
-
             // Set up confirm button action
             const newConfirmBtn = confirmCompleteBtn.cloneNode(true);
             confirmCompleteBtn.replaceWith(newConfirmBtn);
@@ -247,14 +416,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 const row = document.getElementById(`user-${userId}`);
                 const selects = row.querySelectorAll('.status-select:not([style*="display: none"])');
                 const inputs = row.querySelectorAll('.details-input:not([style*="display: none"])');
-
                 selects.forEach(select => select.value = '齐全');
                 inputs.forEach(input => input.value = '');
-
                 const saveBtn = row.querySelector('.save-btn');
                 saveBtn.click();
                 closeCompleteConfirmModal();
             });
+        });
+    });
+    // Listen for status select changes to update completeness preview
+    document.querySelectorAll('.status-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const userId = this.dataset.userId;
+            const row = document.getElementById(`user-${userId}`);
+            
+            // Temporarily update completeness class for preview
+            // This will be properly updated when saved
+            updateCompletenessClass(userId);
         });
     });
 });
