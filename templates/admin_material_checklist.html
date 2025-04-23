@@ -16,9 +16,8 @@
     <div class="mb-6">
         <div class="border-b border-gray-200 dark:border-gray-700">
             <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm"
-                        data-identity-id="" data-tab="all"
-                        class="border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400">
+                <button class="tab-btn whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm border-indigo-500 text-indigo-600 dark:text-indigo-400 dark:border-indigo-400"
+                        data-identity-id="" data-tab="all">
                     所有身份
                 </button>
                 {% for identity in checklist.identities %}
@@ -102,15 +101,15 @@
     <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认一键补全</h3>
-            <button onclick="closeCompleteConfirmModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
+            <button id="closeModalBtn" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                 </svg>
             </button>
         </div>
-        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">一键补全将设置所有材料为“齐全”并清空备注，确认继续？</p>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">一键补全将设置所有材料为"齐全"并清空备注，确认继续？</p>
         <div class="flex justify-end space-x-2">
-            <button type="button" onclick="closeCompleteConfirmModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
+            <button id="cancelModalBtn" type="button" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                 取消
             </button>
             <button id="confirmCompleteBtn" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
@@ -147,8 +146,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Filter material columns by identity
             const materialCols = document.querySelectorAll('.material-col');
             materialCols.forEach(col => {
-                const identityIds = col.dataset.identityIds.split(',');
-                col.style.display = (!identityId || identityIds.includes(identityId)) ? '' : 'none';
+                const identityIds = col.dataset.identityIds ? col.dataset.identityIds.split(',') : [];
+                col.style.display = (!identityId || identityIds.length === 0 || identityIds.includes(identityId)) ? '' : 'none';
             });
         });
     });
@@ -192,14 +191,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 message.innerHTML = `
                     <i class="fas fa-check-circle"></i>
                     <span class="flex-1">所有材料状态更新成功</span>
-                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                    <button onclick="this.parentElement.remove()" class="text-lg leading-none hover:opacity-70">×</button>
                 `;
             } else {
                 message.className += ' bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
                 message.innerHTML = `
                     <i class="fas fa-exclamation-circle"></i>
                     <span class="flex-1">部分或全部材料更新失败</span>
-                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                    <button onclick="this.parentElement.remove()" class="text-lg leading-none hover:opacity-70">×</button>
                 `;
             }
             document.body.appendChild(message);
@@ -207,15 +206,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Modal functionality
+    const completeConfirmModal = document.getElementById('completeConfirmModal');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cancelModalBtn = document.getElementById('cancelModalBtn');
+    const confirmCompleteBtn = document.getElementById('confirmCompleteBtn');
+
+    function closeCompleteConfirmModal() {
+        completeConfirmModal.classList.add('hidden');
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    // Close modal when clicking X or Cancel button
+    if (closeModalBtn) {
+        closeModalBtn.addEventListener('click', closeCompleteConfirmModal);
+    }
+    if (cancelModalBtn) {
+        cancelModalBtn.addEventListener('click', closeCompleteConfirmModal);
+    }
+
+    // Close modal when clicking outside
+    completeConfirmModal.addEventListener('click', (e) => {
+        if (e.target === completeConfirmModal) {
+            closeCompleteConfirmModal();
+        }
+    });
+
     // Complete Button
     document.querySelectorAll('.complete-btn').forEach(button => {
         button.addEventListener('click', function() {
             const userId = this.dataset.userId;
-            document.getElementById('completeConfirmModal').classList.remove('hidden');
+            completeConfirmModal.classList.remove('hidden');
             document.body.classList.add('overflow-hidden');
 
-            const confirmBtn = document.getElementById('confirmCompleteBtn');
-            confirmBtn.onclick = () => {
+            // Set up confirm button action
+            const newConfirmBtn = confirmCompleteBtn.cloneNode(true);
+            confirmCompleteBtn.replaceWith(newConfirmBtn);
+            
+            newConfirmBtn.addEventListener('click', () => {
                 const row = document.getElementById(`user-${userId}`);
                 const selects = row.querySelectorAll('.status-select:not([style*="display: none"])');
                 const inputs = row.querySelectorAll('.details-input:not([style*="display: none"])');
@@ -226,21 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 const saveBtn = row.querySelector('.save-btn');
                 saveBtn.click();
                 closeCompleteConfirmModal();
-            };
+            });
         });
     });
-
-    function closeCompleteConfirmModal() {
-        document.getElementById('completeConfirmModal').classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    }
-
-    // Click outside to close modal
-    window.onclick = function(event) {
-        if (event.target === document.getElementById('completeConfirmModal')) {
-            closeCompleteConfirmModal();
-        }
-    };
 });
 </script>
 {% endblock %}
