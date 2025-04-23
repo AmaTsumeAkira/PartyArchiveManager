@@ -603,7 +603,19 @@ def get_material_checklist():
                 user['identity_ids'] = [int(i) for i in (user['identity_ids'].split(',') if user['identity_ids'] else [])]
                 user['identity_names'] = user['identity_names'].split(',') if user['identity_names'] else []
             
-            materials = conn.execute('SELECT id, name FROM materials ORDER BY id').fetchall()
+            # 获取所有材料和身份
+            materials = conn.execute('''
+                SELECT m.id, m.name, 
+                       GROUP_CONCAT(mi.identity_id) as identity_ids
+                FROM materials m
+                LEFT JOIN identity_materials mi ON m.id = mi.material_id
+                GROUP BY m.id
+                ORDER BY m.id
+            ''').fetchall()
+            materials = [dict(m) for m in materials]
+            for m in materials:
+                m['identity_ids'] = [int(i) for i in (m['identity_ids'].split(',') if m['identity_ids'] else [])]
+            
             identities = conn.execute('SELECT id, name FROM identities ORDER BY id').fetchall()
             
             checklist = []
@@ -616,10 +628,28 @@ def get_material_checklist():
                     LEFT JOIN user_materials um ON m.id = um.material_id AND um.user_id = ?
                     ORDER BY m.id
                 ''', (user['id'],)).fetchall()
+                user_materials = [dict(m) for m in user_materials]
+                
+                # 计算 completeness 状态
+                complete_count = sum(1 for m in user_materials if m['status'] == '齐全')
+                pending_count = sum(1 for m in user_materials if m['status'] == '待审核')
+                total_count = sum(1 for m in user_materials if m['status'])
+                
+                if total_count == 0:
+                    completeness = 'incomplete'
+                elif complete_count == len(user_materials):
+                    completeness = 'complete'
+                elif pending_count == len(user_materials):
+                    completeness = 'pending'
+                else:
+                    completeness = 'partial'
+                
                 checklist.append({
                     'user': user,
-                    'materials': user_materials
+                    'materials': user_materials,
+                    'completeness': completeness
                 })
+        
         return {
             'users': users,
             'materials': materials,
