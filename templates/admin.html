@@ -39,11 +39,15 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm font-medium text-gray-500 dark:text-gray-400 truncate">处理中转接</p>
+                    <!-- Check if there is any '处理中' status -->
+                    {% set processing_count = 0 %}
                     {% for status in metrics.transfer_statuses %}
                         {% if status.transfer_status == '处理中' %}
-                            <p class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{ status.count }}</p>
+                            {% set processing_count = status.count %}
                         {% endif %}
                     {% endfor %}
+                    <!-- Display the count, defaulting to 0 if no match is found -->
+                    <p class="mt-1 text-3xl font-semibold text-gray-900 dark:text-gray-100">{{ processing_count }}</p>
                 </div>
                 <div class="p-3 rounded-full bg-yellow-100 dark:bg-yellow-900 text-yellow-600 dark:text-yellow-400">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
