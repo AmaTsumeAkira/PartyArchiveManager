@@ -14,7 +14,6 @@
             </a>
         </div>
     </header>
-
     <!-- 警告提示 -->
     <div class="bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-600 p-4 mb-6 rounded-r-lg">
         <div class="flex">
@@ -28,11 +27,10 @@
             </div>
         </div>
     </div>
-
     <!-- 四列布局 -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {% for identity in identities %}
-        <div class="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden h-fit">
+        <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden h-fit shadow-sm">
             <!-- 身份标题 -->
             <div class="bg-gray-50 dark:bg-gray-700 px-4 py-3 border-b border-gray-200 dark:border-gray-600">
                 <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-100 flex items-center">
@@ -41,20 +39,20 @@
                 </h2>
             </div>
             
-            <div class="p-4">
+            <div class="p-4 bg-white dark:bg-gray-800">
                 <form method="POST" action="{{ url_for('admin_materials') }}" class="material-form">
                     <input type="hidden" name="identity_id" value="{{ identity.id }}">
                     
                     <!-- 继承的材料 (仅显示给非最低等级身份) -->
                     {% if identity.id > 1 %}
                     <div class="mb-4">
-                        <div class="accordion-header flex items-center justify-between cursor-pointer p-2 bg-gray-100 dark:rounded-t text-sm" onclick="toggleAccordion(this)">
+                        <div class="accordion-header flex items-center justify-between cursor-pointer p-2 bg-gray-100 dark:bg-gray-700 rounded-t text-sm" onclick="toggleAccordion(this)">
                             <span class="text-gray-700 dark:text-gray-300">
                                 <i class="fas fa-layer-group mr-1"></i>继承的材料
                             </span>
                             <i class="fas fa-chevron-down text-gray-500 dark:text-gray-400 text-xs transition-transform transform"></i>
                         </div>
-                        <div class="accordion-content hidden p-2 border border-gray-200 dark:border-gray-600 rounded-b text-xs">
+                        <div class="accordion-content hidden p-2 border border-gray-200 dark:border-gray-600 rounded-b text-xs bg-white dark:bg-gray-800">
                             {% for id in range(1, identity.id) %}
                             <div class="mb-2">
                                 <h4 class="text-gray-500 dark:text-gray-400 mb-1">
@@ -82,12 +80,12 @@
                         <div class="space-y-2 max-h-60 overflow-y-auto thin-scrollbar">
                             {% for material in material_requirements[identity.id] %}
                             {% if identity.id == 1 or material.id not in material_requirements[identity.id - 1]|map(attribute='id') %}
-                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:transition text-sm">
+                            <div class="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded hover:bg-gray-100 dark:hover:bg-gray-600 transition text-sm">
                                 <label class="flex items-center flex-1 min-w-0">
                                     <input type="checkbox" name="materials[]" value="{{ material.name }}" checked class="h-3 w-3 text-indigo-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600 mr-2">
                                     <span class="truncate">{{ material.name }}</span>
                                 </label>
-                                <button type="button" class="delete-material-btn text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 transition text-xs ml-2" 
+                                <button type="button" class="delete-material-btn text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition text-xs ml-2" 
                                         data-material-id="{{ material.id }}" 
                                         data-material-name="{{ material.name }}"
                                         data-identity-id="{{ identity.id }}">
@@ -115,10 +113,9 @@
         {% endfor %}
     </div>
 </div>
-
 <!-- 删除确认模态框 -->
-<div id="deleteMaterialModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
+<div id="deleteMaterialModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn" style="position: fixed; top: 0; left: 0; right: 0; bottom: 0;">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full mx-4">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认删除</h3>
             <button onclick="closeDeleteModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
@@ -138,9 +135,7 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
-
 {% block scripts %}
 <script>
 // 折叠面板功能
@@ -150,7 +145,6 @@ function toggleAccordion(header) {
     content.classList.toggle('hidden');
     icon.classList.toggle('rotate-180');
 }
-
 // 表单提交处理
 document.querySelectorAll('.material-form').forEach(form => {
     form.addEventListener('submit', function(e) {
@@ -184,7 +178,6 @@ document.querySelectorAll('.material-form').forEach(form => {
         });
     });
 });
-
 // 删除材料按钮点击事件
 let currentMaterialToDelete = null;
 document.querySelectorAll('.delete-material-btn').forEach(button => {
@@ -198,11 +191,12 @@ document.querySelectorAll('.delete-material-btn').forEach(button => {
         document.getElementById('deleteModalContent').textContent = 
             `确定要删除材料"${currentMaterialToDelete.name}"吗？此操作将影响高等级身份的材料清单，且不可撤销。`;
         
-        document.getElementById('deleteMaterialModal').classList.remove('hidden');
+        const modal = document.getElementById('deleteMaterialModal');
+        modal.classList.remove('hidden');
         document.body.classList.add('overflow-hidden');
+        modal.style.display = 'flex';
     });
 });
-
 // 确认删除
 document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
     if (!currentMaterialToDelete) return;
@@ -230,14 +224,14 @@ document.getElementById('confirmDeleteBtn').addEventListener('click', function()
         closeDeleteModal();
     });
 });
-
 // 关闭删除模态框
 function closeDeleteModal() {
-    document.getElementById('deleteMaterialModal').classList.add('hidden');
+    const modal = document.getElementById('deleteMaterialModal');
+    modal.classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
+    modal.style.display = 'none';
     currentMaterialToDelete = null;
 }
-
 // 显示通知消息
 function showFlashMessage(message, type) {
     const container = document.getElementById('flash-messages') || document.body;
@@ -261,7 +255,6 @@ function showFlashMessage(message, type) {
     container.appendChild(messageEl);
     setTimeout(() => messageEl.remove(), 5000);
 }
-
 // 点击模态框外部关闭
 window.onclick = function(event) {
     if (event.target === document.getElementById('deleteMaterialModal')) {
@@ -269,32 +262,26 @@ window.onclick = function(event) {
     }
 };
 </script>
-
 <style>
 .rotate-180 {
     transform: rotate(180deg);
 }
-
 /* 自定义滚动条样式 */
 .thin-scrollbar::-webkit-scrollbar {
     width: 4px;
     height: 4px;
 }
-
 .thin-scrollbar::-webkit-scrollbar-track {
     background: #f1f1f1;
     border-radius: 2px;
 }
-
 .thin-scrollbar::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 2px;
 }
-
 .dark .thin-scrollbar::-webkit-scrollbar-track {
     background: #374151;
 }
-
 .dark .thin-scrollbar::-webkit-scrollbar-thumb {
     background: #6b7280;
 }
