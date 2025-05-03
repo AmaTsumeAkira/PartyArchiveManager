@@ -1,17 +1,21 @@
 {% extends "base.html" %}
-{% block title %}材料核对一览表 - 档案转接系统{% endblock %}
+{% block title %}材料清单 - 档案转接系统{% endblock %}
 {% block content %}
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <!-- Header -->
-    <header class="mb-8">
+    <header class="mb-8 animate-fadeIn">
         <div class="flex justify-between items-center">
             <div>
-                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">材料核对一览表</h1>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">查看和更新用户材料状态</p>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">材料清单</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理用户材料状态和上传图片</p>
             </div>
+            <a href="/admin/archive_overview"
+            class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center">
+            <i class="fas fa-user-plus mr-2"></i> 数据统计与导出
+        </a>
         </div>
     </header>
-    <!-- Filter and Search Controls -->
+    <!-- Filter Controls -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">筛选用户</h2>
         <form id="filterForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -44,144 +48,166 @@
             </div>
         </form>
     </div>
-    <!-- Checklist Table -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
-        <div class="overflow-x-auto">
-            <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
-                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
-                    <tr>
-                        <th class="py-3 px-4">学号</th>
-                        <th class="py-3 px-4 sticky left-0 bg-gray-100 dark:bg-gray-700">姓名</th>
-                        <th class="py-3 px-4">批次</th>
-                        <th class="py-3 px-4">政治身份</th>
-                        <th class="py-3 px-4">操作</th>
-                    </tr>
-                </thead>
-                <tbody id="userTableBody"></tbody>
-            </table>
-        </div>
-        <!-- Pagination -->
-        <div class="mt-6 flex justify-between items-center">
-            <div class="text-sm text-gray-700 dark:text-gray-300">
-                显示 <span id="currentPageInfo"></span> 共 <span id="totalUsers"></span> 条记录
-            </div>
-            <div class="flex space-x-2" id="pagination"></div>
-        </div>
+    <!-- Material Checklist -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 overflow-x-auto">
+        <table id="materialTable" class="w-full text-sm text-left text-gray-700 dark:text-gray-300">
+            <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                <tr>
+                    <th class="py-3 px-4 sticky left-0 bg-gray-100 dark:bg-gray-700 z-10">用户</th>
+                    <th class="py-3 px-4">学号</th>
+                    <th class="py-3 px-4">批次</th>
+                    <th class="py-3 px-4">班级</th>
+                    <th class="py-3 px-4">政治身份</th>
+                    <th class="py-3 px-4">操作</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
     </div>
-</div>
-<!-- Complete Confirmation Modal -->
-<div id="completeConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 p-4">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认一键补全</h3>
-            <button id="closeModalBtn" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
+    <!-- Pagination Controls -->
+    <div class="mt-6 flex justify-between items-center text-sm text-gray-700 dark:text-gray-300">
+        <div>
+            共 <span id="totalUsers"></span> 条记录
         </div>
-        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">一键补全将设置所有材料为“齐全”并清空备注，确认继续？</p>
-        <div class="flex justify-end space-x-2">
-            <button id="cancelModalBtn" type="button" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
-                取消
-            </button>
-            <button id="confirmCompleteBtn" class="px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700">
-                确认
-            </button>
+        <div class="flex items-center space-x-2">
+            <button id="prevPage" class="px-3 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50" disabled>上一页</button>
+            <div id="pageNumbers" class="flex space-x-1"></div>
+            <button id="nextPage" class="px-3 py-1 bg-gray-200 dark:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-500 disabled:opacity-50" disabled>下一页</button>
+            <div class="flex items-center space-x-2">
+                <span>跳转到</span>
+                <input id="pageInput" type="number" min="1" class="w-16 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100 text-center" placeholder="页码">
+                <button id="goToPage" class="px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">跳转</button>
+            </div>
         </div>
     </div>
 </div>
 <!-- Notification -->
 <div id="notification" class="fixed top-4 right-4 z-50 hidden"></div>
+<!-- Image Management Modal -->
+<div id="imageModal" class="fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-4xl max-h-[80vh] overflow-y-auto">
+        <div class="p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 id="modalTitle" class="text-xl font-semibold text-gray-900 dark:text-gray-100"></h2>
+                <button id="closeModal" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">×</button>
+            </div>
+            <div id="modalContent" class="space-y-6"></div>
+        </div>
+    </div>
+</div>
 
 <style>
-    .table tr.completeness-complete {
-        background-color: rgba(16, 185, 129, 0.1);
+    /* Traffic light dots */
+    .completeness-dot {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
     }
-    .table tr.completeness-complete:hover {
-        background-color: rgba(16, 185, 129, 0.15);
+    .completeness-complete { background-color: #10B981; }
+    .completeness-incomplete { background-color: #EF4444; }
+    .completeness-partial { background-color: #F59E0B; }
+    .completeness-pending { background-color: #3B82F6; }
+
+    /* Tooltip */
+    .tooltip {
+        position: relative;
     }
-    .table tr.completeness-complete td.sticky {
-        background-color: rgba(16, 185, 129, 0.1);
+    .tooltip .tooltip-text {
+        visibility: hidden;
+        width: 200px;
+        background-color: #1F2937;
+        color: #F3F4F6;
+        text-align: left;
+        padding: 8px;
+        border-radius: 4px;
+        position: absolute;
+        z-index: 20;
+        top: 100%;
+        left: 0;
+        margin-top: 4px;
+        font-size: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
     }
-    
-    .table tr.completeness-incomplete {
-        background-color: rgba(239, 68, 68, 0.1);
+    .tooltip:hover .tooltip-text {
+        visibility: visible;
     }
-    .table tr.completeness-incomplete:hover {
-        background-color: rgba(239, 68, 68, 0.15);
-    }
-    .table tr.completeness-incomplete td.sticky {
-        background-color: rgba(239, 68, 68, 0.1);
-    }
-    
-    .table tr.completeness-partial {
-        background-color: rgba(245, 158, 11, 0.1);
-    }
-    .table tr.completeness-partial:hover {
-        background-color: rgba(245, 158, 11, 0.15);
-    }
-    .table tr.completeness-partial td.sticky {
-        background-color: rgba(245, 158, 11, 0.1);
-    }
-    
-    .table tr.completeness-pending {
-        background-color: rgba(59, 130, 246, 0.1);
-    }
-    .table tr.completeness-pending:hover {
-        background-color: rgba(59, 130, 246, 0.15);
-    }
-    .table tr.completeness-pending td.sticky {
-        background-color: rgba(59, 130, 246, 0.1);
-    }
-    
-    .dark .table tr.completeness-complete {
-        background-color: rgba(16, 185, 129, 0.2);
-    }
-    .dark .table tr.completeness-complete:hover {
-        background-color: rgba(16, 185, 129, 0.25);
-    }
-    .dark .table tr.completeness-complete td.sticky {
-        background-color: rgba(16, 185, 129, 0.2);
-    }
-    
-    .dark .table tr.completeness-incomplete {
-        background-color: rgba(239, 68, 68, 0.2);
-    }
-    .dark .table tr.completeness-incomplete:hover {
-        background-color: rgba(239, 68, 68, 0.25);
-    }
-    .dark .table tr.completeness-incomplete td.sticky {
-        background-color: rgba(239, 68, 68, 0.2);
-    }
-    
-    .dark .table tr.completeness-partial {
-        background-color: rgba(245, 158, 11, 0.2);
-    }
-    .dark .table tr.completeness-partial:hover {
-        background-color: rgba(245, 158, 11, 0.25);
-    }
-    .dark .table tr.completeness-partial td.sticky {
-        background-color: rgba(245, 158, 11, 0.2);
-    }
-    
-    .dark .table tr.completeness-pending {
-        background-color: rgba(59, 130, 246, 0.2);
-    }
-    .dark .table tr.completeness-pending:hover {
-        background-color: rgba(59, 130, 246, 0.25);
-    }
-    .dark .table tr.completeness-pending td.sticky {
-        background-color: rgba(59, 130, 246, 0.2);
+    .dark .tooltip .tooltip-text {
+        background-color: #374151;
     }
 
-    .status-select.unsaved, .details-input.unsaved {
-        border-color: #f59e0b !important;
+    /* Material status colors */
+    .status-complete { color: #10B981; }
+    .status-incomplete { color: #EF4444; }
+    .status-partial { color: #F59E0B; }
+    .status-pending { color: #3B82F6; }
+    .status-empty { color: #6B7280; }
+
+    /* Modal styling */
+    .modal-content-section {
+        border-bottom: 1px solid #E5E7EB;
+        padding-bottom: 16px;
+    }
+    .dark .modal-content-section {
+        border-bottom-color: #4B5563;
+    }
+    .image-preview {
+        width: 100px;
+        height: 100px;
+        object-fit: cover;
+        border-radius: 4px;
+        cursor: pointer;
+    }
+    .image-preview:hover {
+        opacity: 0.9;
+    }
+    .delete-btn {
+        background-color: #EF4444;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+    }
+    .delete-btn:hover {
+        background-color: #DC2626;
+    }
+
+    /* Table styling */
+    .sticky {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+    }
+
+    /* Pagination styling */
+    .page-number {
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        color: #4B5563;
+        dark:color: #D1D5DB;
+    }
+    .page-number:hover {
+        background-color: #E5E7EB;
+        dark:background-color: #4B5563;
+    }
+    .page-number.active {
+        background-color: #4F46E5;
+        color: white;
     }
 </style>
 {% endblock %}
 {% block scripts %}
 <script>
+// 分页参数
+const ITEMS_PER_PAGE = 5;
+let currentPage = 1;
+let totalPages = 1;
+let allUsers = [];
+let allMaterials = [];
+let allIdentities = [];
+
 // 防抖函数
 function debounce(func, wait) {
     let timeout;
@@ -192,12 +218,10 @@ function debounce(func, wait) {
 }
 
 // 加载数据
-async function loadData(page = 1) {
+async function loadData() {
     const form = document.getElementById('filterForm');
     const formData = new FormData(form);
     const params = new URLSearchParams({
-        page,
-        per_page: 10,
         search: formData.get('search') || '',
         batch: formData.get('batch') || '',
         identity_id: formData.get('identity_id') || '',
@@ -211,72 +235,456 @@ async function loadData(page = 1) {
             showNotification(`加载失败：${data.error}`, 'error');
             return;
         }
-        renderTable(data);
-        renderPagination(data, page);
+        // 存储全量数据
+        allUsers = data.users;
+        allMaterials = data.materials;
+        allIdentities = data.identities;
+        totalPages = Math.ceil(allUsers.length / ITEMS_PER_PAGE);
+        currentPage = 1; // 重置到第一页
+        document.getElementById('totalUsers').textContent = data.total_users;
+        renderTable();
+        renderPagination();
     } catch (error) {
         showNotification(`加载失败：${error.message}`, 'error');
     }
 }
 
 // 渲染表格
-function renderTable(data) {
-    const tbody = document.getElementById('userTableBody');
+function renderTable() {
+    const table = document.getElementById('materialTable');
+    const thead = table.querySelector('thead tr');
+    const tbody = table.querySelector('tbody');
+    
+    // 清空动态表头和表体
+    while (thead.children.length > 6) {
+        thead.removeChild(thead.lastChild);
+    }
     tbody.innerHTML = '';
 
-    data.users.forEach(user => {
-        const row = document.createElement('tr');
-        row.className = `border-b dark:border-gray-700 hover:bg-opacity-80 transition completeness-${user.completeness}`;
-        row.id = `user-${user.id}`;
-        row.innerHTML = `
-            <td class="py-3 px-4">${user.student_id}</td>
-            <td class="py-3 px-4 sticky left-0">${user.name}</td>
-            <td class="py-3 px-4">${user.batch || '未分配'}</td>
-            <td class="py-3 px-4">${user.identity_names.join('、') || '无'}</td>
-            <td class="py-3 px-4 sticky right-0">
-                <button class="view-btn bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-md text-xs" data-user-id="${user.id}">
-                    查看/编辑
-                </button>
-            </td>
+    // 添加材料列
+    allMaterials.forEach(material => {
+        const th = document.createElement('th');
+        th.className = 'py-3 px-4';
+        th.textContent = material.name;
+        th.dataset.materialId = material.id;
+        thead.appendChild(th);
+    });
+
+    // 计算当前页数据
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    const end = start + ITEMS_PER_PAGE;
+    const users = allUsers.slice(start, end);
+
+    // 渲染用户行
+    users.forEach(user => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b dark:border-gray-700';
+        
+        // 用户列（带红绿灯和tooltip）
+        const tdUser = document.createElement('td');
+        tdUser.className = 'py-3 px-4 sticky left-0 bg-white dark:bg-gray-800';
+        tdUser.innerHTML = `
+            <span class="tooltip">
+                <span class="completeness-dot completeness-${user.completeness}"></span>
+                ${user.name}
+                <span class="tooltip-text">
+                    ${user.materials.map(m => `
+                        <div>${m.name}: <span class="status-${m.status ? m.status.toLowerCase().replace(/[^a-z]/g, '') : 'empty'}">${m.status || '未录入'}</span></div>
+                    `).join('')}
+                </span>
+            </span>
         `;
-        tbody.appendChild(row);
+        tr.appendChild(tdUser);
+
+        // 学号
+        const tdStudentId = document.createElement('td');
+        tdStudentId.className = 'py-3 px-4';
+        tdStudentId.textContent = user.student_id;
+        tr.appendChild(tdStudentId);
+
+        // 批次
+        const tdBatch = document.createElement('td');
+        tdBatch.className = 'py-3 px-4';
+        tdBatch.textContent = user.batch || '未分配';
+        tr.appendChild(tdBatch);
+
+        // 班级
+        const tdClass = document.createElement('td');
+        tdClass.className = 'py-3 px-4';
+        tdClass.textContent = user.class_name || '未知';
+        tr.appendChild(tdClass);
+
+        // 政治身份
+        const tdIdentities = document.createElement('td');
+        tdIdentities.className = 'py-3 px-4';
+        tdIdentities.textContent = user.identity_names.join('、') || '无';
+        tr.appendChild(tdIdentities);
+
+        // 操作列
+        const tdAction = document.createElement('td');
+        tdAction.className = 'py-3 px-4';
+        tdAction.innerHTML = `
+            <button class="manage-images-btn px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm" data-user-id="${user.id}" data-user-name="${user.name}">
+                管理图片
+            </button>
+        `;
+        tr.appendChild(tdAction);
+
+        // 材料列
+        allMaterials.forEach(material => {
+            const td = document.createElement('td');
+            td.className = 'py-3 px-4';
+            const userMaterial = user.materials.find(m => m.id === material.id) || { status: '', details: '', image_count: 0 };
+            td.innerHTML = `
+                <div class="flex flex-col gap-2">
+                    <select class="status-select w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100" data-user-id="${user.id}" data-material-id="${material.id}">
+                        <option value="" ${!userMaterial.status ? 'selected' : ''}>未录入</option>
+                        <option value="齐全" ${userMaterial.status === '齐全' ? 'selected' : ''}>齐全</option>
+                        <option value="不齐全" ${userMaterial.status === '不齐全' ? 'selected' : ''}>不齐全</option>
+                        <option value="待审核" ${userMaterial.status === '待审核' ? 'selected' : ''}>待审核</option>
+                    </select>
+                    <input type="text" class="details-input w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100" placeholder="备注" value="${userMaterial.details || ''}" data-user-id="${user.id}" data-material-id="${material.id}">
+                    <span class="text-gray-500 dark:text-gray-400 text-xs">图片: ${userMaterial.image_count}</span>
+                </div>
+            `;
+            tr.appendChild(td);
+        });
+
+        tbody.appendChild(tr);
+    });
+
+    // 添加事件监听
+    addEventListeners();
+}
+
+// 渲染分页控件
+function renderPagination() {
+    const pageNumbers = document.getElementById('pageNumbers');
+    const prevPage = document.getElementById('prevPage');
+    const nextPage = document.getElementById('nextPage');
+    pageNumbers.innerHTML = '';
+
+    // 上一页按钮
+    prevPage.disabled = currentPage === 1;
+    
+    // 下一页按钮
+    nextPage.disabled = currentPage === totalPages || totalPages === 0;
+
+    // 生成页码
+    const maxVisiblePages = 5;
+    let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+    let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+    if (endPage - startPage + 1 < maxVisiblePages) {
+        startPage = Math.max(1, endPage - maxVisiblePages + 1);
+    }
+
+    if (startPage > 1) {
+        const firstPage = document.createElement('span');
+        firstPage.className = 'page-number';
+        firstPage.textContent = '1';
+        firstPage.addEventListener('click', () => {
+            currentPage = 1;
+            renderTable();
+            renderPagination();
+        });
+        pageNumbers.appendChild(firstPage);
+
+        if (startPage > 2) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'px-2';
+            pageNumbers.appendChild(ellipsis);
+        }
+    }
+
+    for (let i = startPage; i <= endPage; i++) {
+        const page = document.createElement('span');
+        page.className = `page-number ${i === currentPage ? 'active' : ''}`;
+        page.textContent = i;
+        page.addEventListener('click', () => {
+            currentPage = i;
+            renderTable();
+            renderPagination();
+        });
+        pageNumbers.appendChild(page);
+    }
+
+    if (endPage < totalPages) {
+        if (endPage < totalPages - 1) {
+            const ellipsis = document.createElement('span');
+            ellipsis.textContent = '...';
+            ellipsis.className = 'px-2';
+            pageNumbers.appendChild(ellipsis);
+        }
+
+        const lastPage = document.createElement('span');
+        lastPage.className = 'page-number';
+        lastPage.textContent = totalPages;
+        lastPage.addEventListener('click', () => {
+            currentPage = totalPages;
+            renderTable();
+            renderPagination();
+        });
+        pageNumbers.appendChild(lastPage);
+    }
+
+    // 更新跳转输入框
+    document.getElementById('pageInput').value = currentPage;
+}
+
+// 添加事件监听
+function addEventListeners() {
+    // 状态选择
+    document.querySelectorAll('.status-select').forEach(select => {
+        select.addEventListener('change', async () => {
+            const userId = select.dataset.userId;
+            const materialId = select.dataset.materialId;
+            const status = select.value;
+            const detailsInput = select.parentElement.querySelector('.details-input');
+            const details = detailsInput.value;
+
+            try {
+                const formData = new FormData();
+                formData.append('user_id', userId);
+                formData.append('material_id', materialId);
+                formData.append('status', status);
+                formData.append('details', details);
+
+                const response = await fetch('/admin/api/update_user_material', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showNotification('状态更新成功', 'success');
+                    loadData(); // 刷新数据以更新齐全度
+                } else {
+                    showNotification(`更新失败：${data.error}`, 'error');
+                }
+            } catch (error) {
+                showNotification(`更新失败：${error.message}`, 'error');
+            }
+        });
+    });
+
+    // 备注输入
+    document.querySelectorAll('.details-input').forEach(input => {
+        input.addEventListener('change', async () => {
+            const userId = input.dataset.userId;
+            const materialId = input.dataset.materialId;
+            const details = input.value;
+            const statusSelect = input.parentElement.querySelector('.status-select');
+            const status = statusSelect.value;
+
+            try {
+                const formData = new FormData();
+                formData.append('user_id', userId);
+                formData.append('material_id', materialId);
+                formData.append('status', status);
+                formData.append('details', details);
+
+                const response = await fetch('/admin/api/update_user_material', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.success) {
+                    showNotification('备注更新成功', 'success');
+                } else {
+                    showNotification(`更新失败：${data.error}`, 'error');
+                }
+            } catch (error) {
+                showNotification(`更新失败：${error.message}`, 'error');
+            }
+        });
+    });
+
+    // 管理图片按钮
+    document.querySelectorAll('.manage-images-btn').forEach(button => {
+        button.addEventListener('click', () => openImageModal(button.dataset.userId, button.dataset.userName));
+    });
+
+    // 关闭模态框
+    document.getElementById('closeModal').addEventListener('click', () => {
+        document.getElementById('imageModal').classList.add('hidden');
+    });
+
+    // 上一页
+    document.getElementById('prevPage').addEventListener('click', () => {
+        if (currentPage > 1) {
+            currentPage--;
+            renderTable();
+            renderPagination();
+        }
+    });
+
+    // 下一页
+    document.getElementById('nextPage').addEventListener('click', () => {
+        if (currentPage < totalPages) {
+            currentPage++;
+            renderTable();
+            renderPagination();
+        }
+    });
+
+    // 跳转到指定页
+    document.getElementById('goToPage').addEventListener('click', () => {
+        const pageInput = document.getElementById('pageInput');
+        let page = parseInt(pageInput.value);
+        if (isNaN(page) || page < 1) {
+            page = 1;
+        } else if (page > totalPages) {
+            page = totalPages;
+        }
+        currentPage = page;
+        renderTable();
+        renderPagination();
+    });
+
+    // 回车跳转
+    document.getElementById('pageInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            document.getElementById('goToPage').click();
+        }
     });
 }
 
-// 渲染分页
-function renderPagination(data, currentPage) {
-    const pagination = document.getElementById('pagination');
-    pagination.innerHTML = '';
+// 打开图片管理模态框
+async function openImageModal(userId, userName) {
+    const modal = document.getElementById('imageModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+    
+    modalTitle.textContent = `${userName} 的图片管理`;
+    modalContent.innerHTML = '<p class="text-gray-500 dark:text-gray-400">加载中...</p>';
 
-    const totalPages = data.total_pages;
-    const prevButton = document.createElement('button');
-    prevButton.className = `px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 ${currentPage === 1 ? 'opacity-50 cursor-not-allowed' : ''}`;
-    prevButton.textContent = '上一页';
-    prevButton.disabled = currentPage === 1;
-    prevButton.onclick = () => loadData(currentPage - 1);
-    pagination.appendChild(prevButton);
+    try {
+        // 使用存储的数据，避免重复请求
+        const user = allUsers.find(u => u.id == userId);
+        if (!user) {
+            throw new Error('用户未找到');
+        }
 
-    const maxPagesToShow = 5;
-    let startPage = Math.max(1, currentPage - 2);
-    let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-    startPage = Math.max(1, endPage - maxPagesToShow + 1);
+        modalContent.innerHTML = '';
+        user.materials.forEach(material => {
+            const section = document.createElement('div');
+            section.className = 'modal-content-section';
+            section.innerHTML = `
+                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">${material.name}</h3>
+                <div class="mb-4">
+                    <input type="file" class="file-upload-input" accept="image/png,image/jpeg" data-user-id="${userId}" data-material-id="${material.id}">
+                    <button class="upload-btn mt-2 px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm" data-user-id="${userId}" data-material-id="${material.id}">上传图片</button>
+                </div>
+                <div class="image-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" data-material-id="${material.id}">
+                    <p class="text-gray-500 dark:text-gray-400">暂无图片</p>
+                </div>
+            `;
+            modalContent.appendChild(section);
 
-    for (let i = startPage; i <= endPage; i++) {
-        const button = document.createElement('button');
-        button.className = `px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm ${i === currentPage ? 'bg-indigo-600 text-white' : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
-        button.textContent = i;
-        button.onclick = () => loadData(i);
-        pagination.appendChild(button);
+            // 加载图片
+            loadImagesForMaterial(userId, material.id);
+        });
+
+        // 添加上传事件
+        modalContent.querySelectorAll('.upload-btn').forEach(button => {
+            button.addEventListener('click', async () => {
+                const userId = button.dataset.userId;
+                const materialId = button.dataset.materialId;
+                const fileInput = button.parentElement.querySelector('.file-upload-input');
+                if (!fileInput.files.length) {
+                    showNotification('请选择一个文件', 'error');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('user_id', userId);
+                formData.append('material_id', materialId);
+                formData.append('file', fileInput.files[0]);
+
+                try {
+                    const response = await fetch('/admin/api/upload_material_image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        showNotification('图片上传成功', 'success');
+                        loadImagesForMaterial(userId, materialId);
+                        loadData(); // 刷新数据以更新图片计数
+                    } else {
+                        showNotification(`上传失败：${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    showNotification(`上传失败：${error.message}`, 'error');
+                }
+            });
+        });
+
+        modal.classList.remove('hidden');
+    } catch (error) {
+        showNotification(`加载图片失败：${error.message}`, 'error');
+        modalContent.innerHTML = `<p class="text-red-500 dark:text-red-400">加载失败：${error.message}</p>`;
     }
+}
 
-    const nextButton = document.createElement('button');
-    nextButton.className = `px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 ${currentPage === totalPages ? 'opacity-50 cursor-not-allowed' : ''}`;
-    nextButton.textContent = '下一页';
-    nextButton.disabled = currentPage === totalPages;
-    nextButton.onclick = () => loadData(currentPage + 1);
-    pagination.appendChild(nextButton);
+// 加载某材料的图片
+async function loadImagesForMaterial(userId, materialId) {
+    const grid = document.querySelector(`.image-grid[data-material-id="${materialId}"]`);
+    try {
+        const response = await fetch(`/admin/api/material_images/${userId}/${materialId}`);
+        const data = await response.json();
+        if (!data.success) {
+            throw new Error(data.error);
+        }
 
-    document.getElementById('currentPageInfo').textContent = `${(currentPage - 1) * 10 + 1}-${Math.min(currentPage * 10, data.total_users)}`;
-    document.getElementById('totalUsers').textContent = data.total_users;
+        if (data.images.length === 0) {
+            grid.innerHTML = '<p class="text-gray-500 dark:text-gray-400">暂无图片</p>';
+            return;
+        }
+
+        grid.innerHTML = '';
+        data.images.forEach(image => {
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2';
+            div.innerHTML = `
+                <img src="/admin/api/material_image/${userId}/${materialId}/${image.id}" class="image-preview" alt="Material Image">
+                <button class="delete-btn" data-image-id="${image.id}">删除</button>
+            `;
+            grid.appendChild(div);
+
+            // 点击图片查看大图
+            div.querySelector('.image-preview').addEventListener('click', () => {
+                window.open(`/admin/api/material_image/${userId}/${materialId}/${image.id}`, '_blank');
+            });
+
+            // 删除图片
+            div.querySelector('.delete-btn').addEventListener('click', async () => {
+                if (!confirm('确定删除此图片？')) return;
+
+                try {
+                    const formData = new FormData();
+                    formData.append('image_id', image.id);
+                    const response = await fetch('/admin/api/delete_material_image', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const data = await response.json();
+                    if (data.success) {
+                        showNotification('图片删除成功', 'success');
+                        loadImagesForMaterial(userId, materialId);
+                        loadData(); // 刷新数据以更新图片计数
+                    } else {
+                        showNotification(`删除失败：${data.error}`, 'error');
+                    }
+                } catch (error) {
+                    showNotification(`删除失败：${error.message}`, 'error');
+                }
+            });
+        });
+    } catch (error) {
+        grid.innerHTML = `<p class="text-red-500 dark:text-red-400">加载失败：${error.message}</p>`;
+    }
 }
 
 // 显示通知
@@ -294,201 +702,12 @@ function showNotification(message, type) {
     setTimeout(() => notification.classList.add('hidden'), 5000);
 }
 
-// 显示用户材料模态框
-async function showUserMaterials(userId) {
-    try {
-        const form = document.getElementById('filterForm');
-        const formData = new FormData(form);
-        const params = new URLSearchParams({
-            page: 1,
-            per_page: 1,
-            user_id: userId,
-            identity_id: formData.get('identity_id') || ''
-        });
-        const response = await fetch(`/admin/api/material_checklist?${params}`);
-        const data = await response.json();
-        if (!data.success || !data.users.length) {
-            showNotification('无法加载用户材料', 'error');
-            return;
-        }
-
-        const user = data.users[0];
-        const materials = data.materials;
-        const modal = document.createElement('div');
-        modal.className = 'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
-        modal.innerHTML = `
-            <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-y-auto">
-                <div class="flex justify-between items-center mb-4">
-                    <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">编辑材料 - ${user.name} (${user.student_id})</h3>
-                    <button class="close-modal text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
-                </div>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
-                        <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
-                            <tr>
-                                <th class="py-3 px-4">材料名称</th>
-                                <th class="py-3 px-4">状态</th>
-                                <th class="py-3 px-4">备注</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${materials.map(material => {
-                                const userMaterial = user.materials.find(m => m.id === material.id) || { status: '', details: '' };
-                                const isVisible = !formData.get('identity_id') || material.identity_ids.includes(parseInt(formData.get('identity_id')));
-                                return isVisible ? `
-                                    <tr class="border-b dark:border-gray-700">
-                                        <td class="py-3 px-4">${material.name}</td>
-                                        <td class="py-3 px-4">
-                                            <select class="status-select w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 text-sm" data-material-id="${material.id}">
-                                                <option value="" ${!userMaterial.status ? 'selected' : ''}>未录入</option>
-                                                <option value="齐全" ${userMaterial.status === '齐全' ? 'selected' : ''}>齐全</option>
-                                                <option value="待审核" ${userMaterial.status === '待审核' ? 'selected' : ''}>待审核</option>
-                                                <option value="不足" ${userMaterial.status === '不足' ? 'selected' : ''}>不足</option>
-                                            </select>
-                                        </td>
-                                        <td class="py-3 px-4">
-                                            <input type="text" class="details-input w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 text-sm" value="${userMaterial.details || ''}" data-material-id="${material.id}">
-                                        </td>
-                                    </tr>
-                                ` : '';
-                            }).join('')}
-                        </tbody>
-                    </table>
-                </div>
-                <div class="flex justify-end space-x-2 mt-4">
-                    <button class="complete-btn px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-green-600 hover:bg-green-700" data-user-id="${user.id}">一键补全</button>
-                    <button class="save-btn px-4 py-2 border border-transparent rounded-md text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700" data-user-id="${user.id}">保存</button>
-                    <button class="close-modal px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">关闭</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-
-        // 绑定事件
-        modal.querySelectorAll('.close-modal').forEach(btn => {
-            btn.addEventListener('click', () => modal.remove());
-        });
-        modal.addEventListener('click', e => {
-            if (e.target === modal) modal.remove();
-        });
-        modal.querySelector('.save-btn').addEventListener('click', () => saveMaterials(user.id, modal));
-        modal.querySelector('.complete-btn').addEventListener('click', () => showCompleteConfirmModal(user.id, modal));
-        modal.querySelectorAll('.status-select, .details-input').forEach(input => {
-            input.addEventListener('change', () => input.classList.add('unsaved'));
-        });
-    } catch (error) {
-        showNotification(`加载用户材料失败：${error.message}`, 'error');
-    }
-}
-
-// 保存材料
-async function saveMaterials(userId, modal) {
-    const updates = [];
-    modal.querySelectorAll('tr').forEach(row => {
-        const materialId = row.querySelector('.status-select').dataset.materialId;
-        const status = row.querySelector('.status-select').value;
-        const details = row.querySelector('.details-input').value;
-        if (status) {
-            updates.push({ material_id: parseInt(materialId), status, details });
-        }
-    });
-
-    try {
-        const response = await fetch('/admin/update_user_material', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ user_id: userId, updates })
-        });
-        const data = await response.json();
-        if (data.success) {
-            showNotification('材料状态更新成功', 'success');
-            modal.remove();
-            loadData(parseInt(document.querySelector('#pagination button.bg-indigo-600')?.textContent || 1));
-        } else {
-            showNotification(`更新失败：${data.error}`, 'error');
-        }
-    } catch (error) {
-        showNotification(`更新失败：${error.message}`, 'error');
-    }
-}
-
-// 显示一键补全确认模态框
-function showCompleteConfirmModal(userId, parentModal) {
-    const modal = document.getElementById('completeConfirmModal');
-    modal.classList.remove('hidden');
-    document.body.classList.add('overflow-hidden');
-
-    const confirmBtn = document.getElementById('confirmCompleteBtn');
-    confirmBtn.onclick = async () => {
-        const updates = [];
-        parentModal.querySelectorAll('tr').forEach(row => {
-            const materialId = row.querySelector('.status-select').dataset.materialId;
-            updates.push({ material_id: parseInt(materialId), status: '齐全', details: '' });
-            row.querySelector('.status-select').value = '齐全';
-            row.querySelector('.details-input').value = '';
-            row.querySelectorAll('.status-select, .details-input').forEach(input => input.classList.remove('unsaved'));
-        });
-
-        try {
-            const response = await fetch('/admin/update_user_material', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ user_id: userId, updates })
-            });
-            const data = await response.json();
-            if (data.success) {
-                showNotification('一键补全成功', 'success');
-                parentModal.remove();
-                loadData(parseInt(document.querySelector('#pagination button.bg-indigo-600')?.textContent || 1));
-            } else {
-                showNotification(`补全失败：${data.error}`, 'error');
-            }
-        } catch (error) {
-            showNotification(`补全失败：${error.message}`, 'error');
-        }
-        modal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    };
-}
-
 // 事件监听
 document.addEventListener('DOMContentLoaded', () => {
-    // 初始加载
     loadData();
-
-    // 筛选和搜索
     const filterForm = document.getElementById('filterForm');
     filterForm.addEventListener('input', debounce(() => loadData(), 300));
     filterForm.addEventListener('change', () => loadData());
-
-    // 查看/编辑按钮
-    document.getElementById('userTableBody').addEventListener('click', e => {
-        const btn = e.target.closest('.view-btn');
-        if (btn) {
-            showUserMaterials(btn.dataset.userId);
-        }
-    });
-
-    // 模态框关闭
-    const completeConfirmModal = document.getElementById('completeConfirmModal');
-    document.getElementById('closeModalBtn').addEventListener('click', () => {
-        completeConfirmModal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    });
-    document.getElementById('cancelModalBtn').addEventListener('click', () => {
-        completeConfirmModal.classList.add('hidden');
-        document.body.classList.remove('overflow-hidden');
-    });
-    completeConfirmModal.addEventListener('click', e => {
-        if (e.target === completeConfirmModal) {
-            completeConfirmModal.classList.add('hidden');
-            document.body.classList.remove('overflow-hidden');
-        }
-    });
 });
 </script>
 {% endblock %}

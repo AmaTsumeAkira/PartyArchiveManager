@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block title %}档案概览 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">档案概览</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">按身份分类查看用户档案状态并导出</p>
+            </div>
+            <button id="exportBtn" class="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm font-medium flex items-center">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                导出 Excel
+            </button>
+        </div>
+    </header>
+    <!-- Filter Controls -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">筛选用户</h2>
+        <form id="filterForm" class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div>
+                <label for="searchInput" class="block text-sm font-medium text-gray-700 dark:text-gray-300">搜索</label>
+                <input type="text" id="searchInput" name="search" placeholder="学号、姓名或班级" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div>
+                <label for="batchFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">批次</label>
+                <input type="text" id="batchFilter" name="batch" placeholder="输入批次" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div>
+                <label for="identityFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">身份</label>
+                <select id="identityFilter" name="identity_id" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">所有身份</option>
+                    {% for identity in identities %}
+                    <option value="{{ identity.id }}">{{ identity.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="completenessFilter" class="block text-sm font-medium text-gray-700 dark:text-gray-300">齐全度</label>
+                <select id="completenessFilter" name="completeness" class="mt-1 w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="all">全部</option>
+                    <option value="complete">齐全</option>
+                    <option value="incomplete">不齐全</option>
+                    <option value="partial">部分齐全</option>
+                    <option value="pending">待审核</option>
+                </select>
+            </div>
+        </form>
+    </div>
+    <!-- Archive Overview -->
+    <div id="archiveSections" class="space-y-6"></div>
+    <!-- Record Count -->
+    <div class="mt-6 text-sm text-gray-700 dark:text-gray-300">
+        共 <span id="totalUsers"></span> 条记录
+    </div>
+</div>
+<!-- Notification -->
+<div id="notification" class="fixed top-4 right-4 z-50 hidden"></div>
+
+<style>
+    .completeness-complete {
+        background-color: rgba(16, 185, 129, 0.1);
+    }
+    .completeness-complete:hover {
+        background-color: rgba(16, 185, 129, 0.15);
+    }
+    .dark .completeness-complete {
+        background-color: rgba(16, 185, 129, 0.2);
+    }
+    .dark .completeness-complete:hover {
+        background-color: rgba(16, 185, 129, 0.25);
+    }
+
+    .completeness-incomplete {
+        background-color: rgba(239, 68, 68, 0.1);
+    }
+    .completeness-incomplete:hover {
+        background-color: rgba(239, 68, 68, 0.15);
+    }
+    .dark .completeness-incomplete {
+        background-color: rgba(239, 68, 68, 0.2);
+    }
+    .dark .completeness-incomplete:hover {
+        background-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .completeness-partial {
+        background-color: rgba(245, 158, 11, 0.1);
+    }
+    .completeness-partial:hover {
+        background-color: rgba(245, 158, 11, 0.15);
+    }
+    .dark .completeness-partial {
+        background-color: rgba(245, 158, 11, 0.2);
+    }
+    .dark .completeness-partial:hover {
+        background-color: rgba(245, 158, 11, 0.25);
+    }
+
+    .completeness-pending {
+        background-color: rgba(59, 130, 246, 0.1);
+    }
+    .completeness-pending:hover {
+        background-color: rgba(59, 130, 246, 0.15);
+    }
+    .dark .completeness-pending {
+        background-color: rgba(59, 130, 246, 0.2);
+    }
+    .dark .completeness-pending:hover {
+        background-color: rgba(59, 130, 246, 0.25);
+    }
+
+    .transfer-completed {
+        background-color: rgba(16, 185, 129, 0.1);
+    }
+    .dark .transfer-completed {
+        background-color: rgba(16, 185, 129, 0.2);
+    }
+
+    .transfer-abandoned {
+        background-color: rgba(239, 68, 68, 0.1);
+    }
+    .dark .transfer-abandoned {
+        background-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .transfer-processing {
+        background-color: rgba(245, 158, 11, 0.1);
+    }
+    .dark .transfer-processing {
+        background-color: rgba(245, 158, 11, 0.2);
+    }
+
+    .transfer-not-started {
+        background-color: rgba(107, 114, 128, 0.1);
+    }
+    .dark .transfer-not-started {
+        background-color: rgba(107, 114, 128, 0.2);
+    }
+</style>
+{% endblock %}
+{% block scripts %}
+<script>
+// 防抖函数
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// 齐全度映射
+const completenessMap = {
+    complete: '齐全',
+    incomplete: '不齐全',
+    partial: '部分齐全',
+    pending: '待审核'
+};
+
+// 加载数据
+async function loadData() {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams({
+        search: formData.get('search') || '',
+        batch: formData.get('batch') || '',
+        identity_id: formData.get('identity_id') || '',
+        completeness: formData.get('completeness') || 'all'
+    });
+
+    try {
+        const response = await fetch(`/admin/api/material_checklist?${params}`);
+        const data = await response.json();
+        if (!data.success) {
+            showNotification(`加载失败：${data.error}`, 'error');
+            return;
+        }
+        renderSections(data);
+        document.getElementById('totalUsers').textContent = data.total_users;
+    } catch (error) {
+        showNotification(`加载失败：${error.message}`, 'error');
+    }
+}
+
+// 渲染身份分类部分
+function renderSections(data) {
+    const sections = document.getElementById('archiveSections');
+    sections.innerHTML = '';
+
+    const identities = data.identities;
+    const usersByIdentity = {};
+
+    // 初始化用户分组
+    identities.forEach(identity => {
+        usersByIdentity[identity.id] = {
+            name: identity.name,
+            users: [],
+            stats: { total: 0, complete: 0, incomplete: 0, partial: 0, pending: 0 }
+        };
+    });
+    usersByIdentity['all'] = {
+        name: '所有身份',
+        users: [],
+        stats: { total: 0, complete: 0, incomplete: 0, partial: 0, pending: 0 }
+    };
+
+    // 按身份分组用户
+    data.users.forEach(user => {
+        usersByIdentity['all'].users.push(user);
+        usersByIdentity['all'].stats.total++;
+        usersByIdentity['all'].stats[user.completeness]++;
+        user.identity_ids.forEach(id => {
+            if (usersByIdentity[id]) {
+                usersByIdentity[id].users.push(user);
+                usersByIdentity[id].stats.total++;
+                usersByIdentity[id].stats[user.completeness]++;
+            }
+        });
+    });
+
+    // 渲染部分
+    Object.entries(usersByIdentity).forEach(([id, group]) => {
+        if (id === 'all' && data.identities.length > 1) return; // 如果筛选了特定身份，跳过“所有身份”
+        const section = document.createElement('div');
+        section.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-lg';
+        section.innerHTML = `
+            <div class="p-4 border-b dark:border-gray-700">
+                <button class="w-full flex justify-between items-center text-lg font-semibold text-gray-900 dark:text-gray-100 toggle-btn">
+                    <span>${group.name} (${group.stats.total} 人)</span>
+                    <svg class="w-5 h-5 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+                <div class="mt-2 text-sm text-gray-600 dark:text-gray-400">
+                    齐全: ${group.stats.complete} | 不齐全: ${group.stats.incomplete} | 部分齐全: ${group.stats.partial} | 待审核: ${group.stats.pending}
+                </div>
+            </div>
+            <div class="table-container hidden p-4">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                        <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                            <tr>
+                                <th class="py-3 px-4">学号</th>
+                                <th class="py-3 px-4">姓名</th>
+                                <th class="py-3 px-4">批次</th>
+                                <th class="py-3 px-4">班级</th>
+                                <th class="py-3 px-4">政治身份</th>
+                                <th class="py-3 px-4">材料齐全度</th>
+                                <th class="py-3 px-4">转接状态</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${group.users.map(user => `
+                                <tr class="border-b dark:border-gray-700 completeness-${user.completeness}">
+                                    <td class="py-3 px-4">${user.student_id}</td>
+                                    <td class="py-3 px-4">${user.name}</td>
+                                    <td class="py-3 px-4">${user.batch || '未分配'}</td>
+                                    <td class="py-3 px-4">${user.class_name || '未知'}</td>
+                                    <td class="py-3 px-4">${user.identity_names.join('、') || '无'}</td>
+                                    <td class="py-3 px-4">
+                                        <span class="inline-block px-2 py-1 rounded completeness-${user.completeness}">
+                                            ${completenessMap[user.completeness] || user.completeness}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="inline-block px-2 py-1 rounded transfer-${(user.transfer_status || '未开始').replace(/[^a-zA-Z]/g, '').toLowerCase()}">
+                                            ${user.transfer_status || '未开始'}
+                                        </span>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        `;
+        sections.appendChild(section);
+
+        // 切换部分
+        section.querySelector('.toggle-btn').addEventListener('click', () => {
+            const container = section.querySelector('.table-container');
+            const icon = section.querySelector('svg');
+            container.classList.toggle('hidden');
+            icon.classList.toggle('rotate-180');
+        });
+    });
+}
+
+// 显示通知
+function showNotification(message, type) {
+    const notification = document.getElementById('notification');
+    notification.className = `px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 ${type === 'error' ? 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100' : 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100'}`;
+    notification.innerHTML = `
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${type === 'error' ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'}"></path>
+        </svg>
+        <span class="flex-1">${message}</span>
+        <button onclick="this.parentElement.classList.add('hidden')" class="text-lg leading-none hover:opacity-70">×</button>
+    `;
+    notification.classList.remove('hidden');
+    setTimeout(() => notification.classList.add('hidden'), 5000);
+}
+
+// 导出 Excel
+async function exportToExcel() {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams({
+        search: formData.get('search') || '',
+        batch: formData.get('batch') || '',
+        identity_id: formData.get('identity_id') || '',
+        completeness: formData.get('completeness') || 'all'
+    });
+
+    try {
+        const response = await fetch(`/admin/api/export_archive?${params}`);
+        if (!response.ok) {
+            const data = await response.json();
+            showNotification(`导出失败：${data.error}`, 'error');
+            return;
+        }
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'archive_overview.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+        showNotification('导出成功', 'success');
+    } catch (error) {
+        showNotification(`导出失败：${error.message}`, 'error');
+    }
+}
+
+// 事件监听
+document.addEventListener('DOMContentLoaded', () => {
+    loadData();
+    const filterForm = document.getElementById('filterForm');
+    filterForm.addEventListener('input', debounce(() => loadData(), 300));
+    filterForm.addEventListener('change', () => loadData());
+    document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+});
+</script>
+{% endblock %}
