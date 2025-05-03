@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -36,253 +35,234 @@
                 opacity: 0;
                 transform: translateY(10px);
             }
-
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
-
         .animate-fadeIn {
             animation: fadeIn 0.5s ease-out forwards;
         }
-
         /* 骨架屏效果 */
         .skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
         }
-
         @keyframes shimmer {
             0% {
                 background-position: 200% 0;
             }
-
             100% {
                 background-position: -200% 0;
             }
         }
     </style>
 </head>
-
-<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex flex-col transition-colors duration-300">
-    <!-- 顶部导航栏 -->
-    <nav class="bg-gradient-to-r from-red-600 to-red-800 text-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-12">
-                <div class="flex items-center">
-                    <div class="flex-shrink-0 flex items-center">
-                        <i class="fas fa-archive text-2xl mr-2"></i>
-                        <h1 class="text-xl font-bold tracking-tight">档案转接系统</h1>
+<body class="bg-gray-100 dark:bg-gray-900 transition-colors duration-300">
+    <!-- Full-screen wrapper for proper modal positioning -->
+    <div class="min-h-screen flex flex-col relative">
+        <!-- 顶部导航栏 -->
+        <nav class="bg-gradient-to-r from-red-600 to-red-800 text-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-12">
+                    <div class="flex items-center">
+                        <div class="flex-shrink-0 flex items-center">
+                            <i class="fas fa-archive text-2xl mr-2"></i>
+                            <h1 class="text-xl font-bold tracking-tight">档案转接系统</h1>
+                        </div>
                     </div>
+                    {% if session.is_admin %}
+                    <div class="hidden md:block">
+                        <div class="ml-10 flex items-center space-x-4">
+                            <a href="{{ url_for('admin') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-tachometer-alt mr-1"></i>仪表盘
+                            </a>
+                            <a href="{{ url_for('admin_users') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-users mr-1"></i>用户管理
+                            </a>
+                            <a href="{{ url_for('admin_transfer_status') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-exchange-alt mr-1"></i>转接状态
+                            </a>
+                            <a href="{{ url_for('admin_materials') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-folder-open mr-1"></i>材料配置
+                            </a>
+                            <a href="{{ url_for('material_checklist') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-check-double mr-1"></i>材料核对
+                            </a>
+                            <a href="{{ url_for('reset_users') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-sync-alt mr-1"></i>初始化
+                            </a>
+                            <a href="{{ url_for('admin_cultivators') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-chalkboard-teacher mr-1"></i>培养人
+                            </a>
+                            <span
+                                class="text-gray-200 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center">
+                                <i class="fas fa-user-circle mr-1"></i> {{ session.student_id or '用户' }}
+                            </span>
+                            <a href="{{ url_for('logout') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
+                                title="退出登录">
+                                <i class="fas fa-sign-out-alt mr-1"></i>退出
+                            </a>
+                            <button onclick="toggleDarkMode()" class="p-2 rounded-full hover:bg-red-700 transition">
+                                <i class="fas fa-moon dark:hidden"></i>
+                                <i class="fas fa-sun hidden dark:inline"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="-mr-2 flex md:hidden">
+                        <button type="button" id="mobile-menu-button"
+                            class="p-2 rounded-md inline-flex items-center justify-center hover:bg-red-700 focus:outline-none">
+                            <i class="fas fa-bars"></i>
+                        </button>
+                    </div>
+                    {% endif %}
                 </div>
-                {% if session.is_admin %}
-                <div class="hidden md:block">
-                    <div class="ml-10 flex items-center space-x-4">
-                        <a href="{{ url_for('admin') }}"
-                            class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
-                            <i class="fas fa-tachometer-alt mr-1"></i>仪表盘
-                        </a>
-                        <a href="{{ url_for('admin_users') }}"
-                            class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
-                            <i class="fas fa-users mr-1"></i>用户管理
-                        </a>
-                        <a href="{{ url_for('admin_transfer_status') }}"
-                            class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
-                            <i class="fas fa-exchange-alt mr-1"></i>转接状态
-                        </a>
-                        <a href="{{ url_for('admin_materials') }}"
-                            class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
-                            <i class="fas fa-folder-open mr-1"></i>材料配置
-                        </a>
-                        <a href="{{ url_for('material_checklist') }}"
-                            class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
-                            <i class="fas fa-check-double mr-1"></i>材料核对
-                        </a>
-                        <a href="{{ url_for('reset_users') }}"
-                            class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
-                            <i class="fas fa-sync-alt mr-1"></i>初始化
-                        </a>
-                        <a href="{{ url_for('admin_cultivators') }}"
-                        class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
-                        <i class="fas fa-chalkboard-teacher mr-1"></i>培养人
+            </div>
+            <!-- 移动端菜单 -->
+            {% if session.is_admin %}
+            <div class="md:hidden hidden" id="mobile-menu">
+                <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
+                    <div class="px-3 py-2 text-gray-200">
+                        <i class="fas fa-user-circle mr-2"></i> {{ session.student_id or '用户' }}
+                    </div>
+                    <a href="{{ url_for('admin') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-tachometer-alt mr-2"></i>仪表盘
                     </a>
-                        <span
-                            class="text-gray-200 hover:text-white px-3 py-2 rounded-md text-sm font-medium flex items-center">
-                            <i class="fas fa-user-circle mr-1"></i> {{ session.student_id or '用户' }}
-                        </span>
-                        <a href="{{ url_for('logout') }}"
-                            class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200"
-                            title="退出登录">
-                            <i class="fas fa-sign-out-alt mr-1"></i>退出
+                    <a href="{{ url_for('admin_users') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-users mr-2"></i>用户管理
+                    </a>
+                    <a href="{{ url_for('admin_transfer_status') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-exchange-alt mr-2"></i>转接状态
+                    </a>
+                    <a href="{{ url_for('admin_materials') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-folder-open mr-2"></i>材料管理
+                    </a>
+                    <a href="{{ url_for('material_checklist') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-check-double mr-2"></i>材料核对
+                    </a>
+                    <a href="{{ url_for('reset_users') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-sync-alt mr-2"></i>初始化用户
+                    </a>
+                    <a href="{{ url_for('admin_cultivators') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-chalkboard-teacher mr-2"></i>培养人管理
+                    </a>
+                    <a href="{{ url_for('logout') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-sign-out-alt mr-2"></i>退出登录
+                    </a>
+                    <button onclick="toggleDarkMode()"
+                        class="w-full text-left px-3 py-2 rounded-md text-base font-medium mobile-nav-item">
+                        <i class="fas fa-moon dark:hidden mr-2"></i>
+                        <i class="fas fa-sun hidden dark:inline mr-2"></i>
+                        切换主题
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </nav>
+
+        <!-- 主要内容 -->
+        <main class="flex-grow container mx-auto p-4 md:p-6 animate-fadeIn">
+            <!-- 通知部分 -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+            <div class="fixed top-4 left-4 z-50 space-y-2" id="flash-messages">
+                {% for category, message in messages %}
+                <div class="flash-message px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 
+                    animate-fadeIn
+                    {% if category == 'error' %} bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100
+                    {% elif category == 'success' %} bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                    {% else %} bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100 {% endif %}">
+                    <i class="fas 
+                        {% if category == 'error' %} fa-exclamation-circle
+                        {% elif category == 'success' %} fa-check-circle
+                        {% else %} fa-info-circle {% endif %}"></i>
+                    <span class="flex-1">{{ message }}</span>
+                    <button onclick="removeFlashMessage(this.closest('.flash-message'))"
+                        class="text-lg leading-none hover:opacity-70">
+                        &times;
+                    </button>
+                </div>
+                {% endfor %}
+            </div>
+            <script>
+                function removeFlashMessage(el) {
+                    el.classList.add('opacity-0');
+                    setTimeout(() => el.remove(), 500);
+                }
+                document.addEventListener('DOMContentLoaded', () => {
+                    document.querySelectorAll('.flash-message').forEach(msg => {
+                        setTimeout(() => removeFlashMessage(msg), 5000);
+                    });
+                });
+            </script>
+            {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- 底部 -->
+        <footer class="bg-white dark:bg-gray-800 shadow-inner mt-8 py-4">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex flex-col md:flex-row justify-between items-center">
+                    <div class="flex items-center space-x-2 mb-4 md:mb-0">
+                        <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="h-8"
+                            onerror="this.style.display='none'">
+                        <p class="text-sm text-gray-600 dark:text-gray-300">山西财专信息科技学院分团委 © 2025</p>
+                    </div>
+                    <div class="flex space-x-6">
+                        <a href="#" class="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition">
+                            <i class="fab fa-weixin"></i>
+                            <span class="sr-only">微信</span>
                         </a>
-                        <button onclick="toggleDarkMode()" class="p-2 rounded-full hover:bg-red-700 transition">
-                            <i class="fas fa-moon dark:hidden"></i>
-                            <i class="fas fa-sun hidden dark:inline"></i>
+                        <a href="#" class="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition">
+                            <i class="fas fa-envelope"></i>
+                            <span class="sr-only">邮箱</span>
+                        </a>
+                        <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
+                            class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition" title="返回顶部">
+                            <i class="fas fa-arrow-up"></i>
                         </button>
                     </div>
                 </div>
-                <div class="-mr-2 flex md:hidden">
-                    <button type="button" id="mobile-menu-button"
-                        class="p-2 rounded-md inline-flex items-center justify-center hover:bg-red-700 focus:outline-none">
-                        <i class="fas fa-bars"></i>
-                    </button>
-                </div>
-                {% endif %}
             </div>
-        </div>
-        <!-- 移动端菜单 -->
-        {% if session.is_admin %}
-        <div class="md:hidden hidden" id="mobile-menu">
-            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-                <div class="px-3 py-2 text-gray-200">
-                    <i class="fas fa-user-circle mr-2"></i> {{ session.student_id or '用户' }}
-                </div>
-                <a href="{{ url_for('admin') }}"
-                    class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                    <i class="fas fa-tachometer-alt mr-2"></i>仪表盘
-                </a>
-                <a href="{{ url_for('admin_users') }}"
-                    class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                    <i class="fas fa-users mr-2"></i>用户管理
-                </a>
-                <a href="{{ url_for('admin_transfer_status') }}"
-                    class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                    <i class="fas fa-exchange-alt mr-2"></i>转接状态
-                </a>
-                <a href="{{ url_for('admin_materials') }}"
-                    class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                    <i class="fas fa-folder-open mr-2"></i>材料管理
-                </a>
-                <a href="{{ url_for('material_checklist') }}"
-                    class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                    <i class="fas fa-check-double mr-2"></i>材料核对
-                </a>
-                <a href="{{ url_for('reset_users') }}"
-                    class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                    <i class="fas fa-sync-alt mr-2"></i>初始化用户
-                </a>
-                <a href="{{ url_for('admin_cultivators') }}"
-                class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                <i class="fas fa-chalkboard-teacher mr-2"></i>培养人管理
-            </a>
-                <a href="{{ url_for('logout') }}"
-                    class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
-                    <i class="fas fa-sign-out-alt mr-2"></i>退出登录
-                </a>
-                <button onclick="toggleDarkMode()"
-                    class="w-full text-left px-3 py-2 rounded-md text-base font-medium mobile-nav-item">
-                    <i class="fas fa-moon dark:hidden mr-2"></i>
-                    <i class="fas fa-sun hidden dark:inline mr-2"></i>
-                    切换主题
-                </button>
-            </div>
-        </div>
-        {% endif %}
-    </nav>
-
-    <!-- 主要内容 -->
-    <main class="flex-grow container mx-auto p-4 md:p-6 animate-fadeIn">
-        <!-- 修改后的通知部分，位置为左上角 -->
-        {% with messages = get_flashed_messages(with_categories=true) %}
-        {% if messages %}
-        <div class="fixed top-4 left-4 z-50 space-y-2" id="flash-messages">
-            {% for category, message in messages %}
-            <div class="flash-message px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 
-        animate-fadeIn
-        {% if category == 'error' %} bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100
-        {% elif category == 'success' %} bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
-        {% else %} bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100 {% endif %}">
-                <i class="fas 
-            {% if category == 'error' %} fa-exclamation-circle
-            {% elif category == 'success' %} fa-check-circle
-            {% else %} fa-info-circle {% endif %}"></i>
-                <span class="flex-1">{{ message }}</span>
-                <button onclick="removeFlashMessage(this.closest('.flash-message'))"
-                    class="text-lg leading-none hover:opacity-70">
-                    &times;
-                </button>
-            </div>
-            {% endfor %}
-        </div>
-
-        <script>
-            // 移除单条通知
-            function removeFlashMessage(el) {
-                el.classList.add('opacity-0');
-                setTimeout(() => el.remove(), 500);
-            }
-
-            // 自动移除通知
-            document.addEventListener('DOMContentLoaded', () => {
-                document.querySelectorAll('.flash-message').forEach(msg => {
-                    setTimeout(() => removeFlashMessage(msg), 5000);
-                });
-            });
-        </script>
-        {% endif %}
-        {% endwith %}
-
-
-        {% block content %}{% endblock %}
-    </main>
-
-    <!-- 底部 -->
-    <footer class="bg-white dark:bg-gray-800 shadow-inner mt-8 py-4">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex flex-col md:flex-row justify-between items-center">
-                <div class="flex items-center space-x-2 mb-4 md:mb-0">
-                    <img src="{{ url_for('static', filename='images/logo.png') }}" alt="Logo" class="h-8"
-                        onerror="this.style.display='none'">
-                    <p class="text-sm text-gray-600 dark:text-gray-300">山西财专信息科技学院分团委 © 2025</p>
-                </div>
-                <div class="flex space-x-6">
-                    <a href="#" class="text-gray-500 hover:text-red-600 dark:hover:text-red-400 transition">
-                        <i class="fab fa-weixin"></i>
-                        <span class="sr-only">微信</span>
-                    </a>
-                    <a href="#" class="text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition">
-                        <i class="fas fa-envelope"></i>
-                        <span class="sr-only">邮箱</span>
-                    </a>
-                    <button onclick="window.scrollTo({top: 0, behavior: 'smooth'})"
-                        class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition" title="返回顶部">
-                        <i class="fas fa-arrow-up"></i>
-                    </button>
-                </div>
-            </div>
-        </div>
-    </footer>
+        </footer>
+    </div>
 
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/signature.js') }}"></script>
     <script>
-        // 移动端菜单切换
         document.getElementById('mobile-menu-button').addEventListener('click', function () {
             const menu = document.getElementById('mobile-menu');
             menu.classList.toggle('hidden');
         });
-
-        // 暗黑模式切换
         function toggleDarkMode() {
             document.documentElement.classList.toggle('dark');
             localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));
         }
-
-        // 初始化暗黑模式
         if (localStorage.getItem('darkMode') === 'true') {
             document.documentElement.classList.add('dark');
         }
-
-        // 确认对话框
         function confirmAction(message) {
             return confirm(message);
         }
-
-        // 页面加载动画
         document.addEventListener('DOMContentLoaded', function () {
-            // 延迟加载非关键资源
             const lazyLoad = setTimeout(() => {
                 const lazyImages = [].slice.call(document.querySelectorAll("img.lazy"));
                 lazyImages.forEach(function (img) {
@@ -291,8 +271,6 @@
                 });
             }, 1000);
         });
-
-        // 骨架屏处理
         window.addEventListener('load', function () {
             document.querySelectorAll('.skeleton').forEach(el => {
                 el.classList.remove('skeleton');
@@ -300,6 +278,6 @@
         });
     </script>
     {% block scripts %}{% endblock %}
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'939f94611f4ec010',t:'MTc0NjI3MzQzMy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
-
 </html>
