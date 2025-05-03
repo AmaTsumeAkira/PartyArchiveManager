@@ -12,13 +12,17 @@
         </div>
     </header>
 
-    <!-- Filter Section -->
+    <!-- Filter and Search Section -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 animate-fadeIn">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">筛选用户</h2>
-        <div class="flex flex-col sm:flex-row sm:items-center sm:space-x-4 space-y-4 sm:space-y-0">
-            <div class="flex items-center space-x-2">
-                <label for="identity_filter" class="text-sm font-medium text-gray-700 dark:text-gray-300">按政治面貌筛选：</label>
-                <div class="relative w-48">
+        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 space-y-4 md:space-y-0">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">搜索用户</label>
+                <input type="text" id="searchInput" placeholder="输入学号、姓名或班级" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div class="flex-1">
+                <label for="identity_filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">按政治面貌筛选</label>
+                <div class="relative">
                     <select id="identity_filter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
                         <option value="">全部</option>
                         {% for identity in identities %}
@@ -32,9 +36,9 @@
                     </div>
                 </div>
             </div>
-            <div class="flex items-center space-x-2">
-                <label for="transfer_status_filter" class="text-sm font-medium text-gray-700 dark:text-gray-300">按转接状态筛选：</label>
-                <div class="relative w-48">
+            <div class="flex-1">
+                <label for="transfer_status_filter" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">按转接状态筛选</label>
+                <div class="relative">
                     <select id="transfer_status_filter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
                         <option value="">全部</option>
                         <option value="未开始">未开始</option>
@@ -48,6 +52,10 @@
                         </svg>
                     </div>
                 </div>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">按批次筛选</label>
+                <input type="text" id="batchFilter" placeholder="输入批次" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
             </div>
         </div>
     </div>
@@ -71,61 +79,21 @@
                         <th class="py-3 px-4 min-w-[100px]">操作</th>
                     </tr>
                 </thead>
-                <tbody id="userTable">
-                    {% for user in users %}
-                    <tr data-identities="{{ user.identity_names|join(',') }}" data-transfer-status="{{ user.transfer_status }}" class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition">
-                        <td class="py-3 px-4 truncate">{{ user.student_id }}</td>
-                        <td class="py-3 px-4 truncate">{{ user.name }}</td>
-                        <td class="py-3 px-4 truncate">{{ user.class_name }}</td>
-                        <td class="py-3 px-4 truncate">{{ user.identity_names|join('、') }}</td>
-                        <td class="py-3 px-4">
-                            <div class="relative">
-                                <select name="transfer_status" class="transfer-status w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
-                                    <option value="未开始" {% if user.transfer_status == '未开始' %}selected{% endif %}>未开始</option>
-                                    <option value="处理中" {% if user.transfer_status == '处理中' %}selected{% endif %}>处理中</option>
-                                    <option value="已完成" {% if user.transfer_status == '已完成' %}selected{% endif %}>已完成</option>
-                                    <option value="已放弃" {% if user.transfer_status == '已放弃' %}selected{% endif %}>已放弃</option>
-                                </select>
-                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4">
-                            <div class="relative">
-                                <select name="receive_status" class="receive-status w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
-                                    <option value="未开始" {% if user.receive_status == '未开始' %}selected{% endif %}>未开始</option>
-                                    <option value="待确认" {% if user.receive_status == '待确认' %}selected{% endif %}>待确认</option>
-                                    <option value="已确认" {% if user.receive_status == '已确认' %}selected{% endif %}>已确认</option>
-                                    <option value="已放弃" {% if user.receive_status == '已放弃' %}selected{% endif %}>已放弃</option>
-                                </select>
-                                <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
-                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                                    </svg>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="py-3 px-4">
-                            <input type="date" name="transfer_date" class="transfer-date w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="{{ user.transfer_date or '' }}">
-                        </td>
-                        <td class="py-3 px-4">
-                            <input type="text" name="receiver" class="receiver w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="{{ user.receiver or '' }}">
-                        </td>
-                        <td class="py-3 px-4">
-                            <input type="number" name="progress" class="progress w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="{{ user.progress|default(0) }}" min="0" max="100">
-                        </td>
-                        <td class="py-3 px-4">
-                            <button class="update-btn bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center" data-user-id="{{ user.id }}">
-                                更新
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                <tbody id="userTableBody">
+                    <!-- Table rows will be populated by JavaScript -->
                 </tbody>
             </table>
+        </div>
+        <!-- Pagination -->
+        <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+                显示 <span id="currentPageInfo">1-10</span> 共 <span id="totalUsers"></span> 条记录
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50" disabled>上一页</button>
+                <div id="pageNumbers" class="flex space-x-1"></div>
+                <button id="nextPage" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50">下一页</button>
+            </div>
         </div>
     </div>
 </div>
@@ -133,79 +101,206 @@
 
 {% block scripts %}
 <script>
-function filterTable() {
-    const selectedIdentity = document.getElementById('identity_filter').value.toLowerCase();
-    const selectedTransferStatus = document.getElementById('transfer_status_filter').value.toLowerCase();
-    const rows = document.querySelectorAll('#userTable tr');
+// 用户数据
+const users = {{ users|tojson }};
+const pageSize = 10;
+let currentPage = 1;
+let filteredUsers = [...users];
 
-    rows.forEach(row => {
-        const identities = row.getAttribute('data-identities').toLowerCase();
-        const transferStatus = row.getAttribute('data-transfer-status').toLowerCase();
-        const matchesIdentity = !selectedIdentity || identities.includes(selectedIdentity);
-        const matchesTransferStatus = !selectedTransferStatus || transferStatus === selectedTransferStatus;
+// 渲染表格
+function renderTable(page = 1) {
+    currentPage = page;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedUsers = filteredUsers.slice(start, end);
 
-        if (matchesIdentity && matchesTransferStatus) {
-            row.style.display = '';
-        } else {
-            row.style.display = 'none';
-        }
+    const tbody = document.getElementById('userTableBody');
+    tbody.innerHTML = '';
+
+    paginatedUsers.forEach(user => {
+        const row = document.createElement('tr');
+        row.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition';
+        row.setAttribute('data-identities', user.identity_names.join(','));
+        row.setAttribute('data-transfer-status', user.transfer_status);
+        row.innerHTML = `
+            <td class="py-3 px-4 truncate">${user.student_id}</td>
+            <td class="py-3 px-4 truncate">${user.name}</td>
+            <td class="py-3 px-4 truncate">${user.class_name}</td>
+            <td class="py-3 px-4 truncate">${user.identity_names.join('、')}</td>
+            <td class="py-3 px-4">
+                <div class="relative">
+                    <select name="transfer_status" class="transfer-status w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                        <option value="未开始" ${user.transfer_status === '未开始' ? 'selected' : ''}>未开始</option>
+                        <option value="处理中" ${user.transfer_status === '处理中' ? 'selected' : ''}>处理中</option>
+                        <option value="已完成" ${user.transfer_status === '已完成' ? 'selected' : ''}>已完成</option>
+                        <option value="已放弃" ${user.transfer_status === '已放弃' ? 'selected' : ''}>已放弃</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </td>
+            <td class="py-3 px-4">
+                <div class="relative">
+                    <select name="receive_status" class="receive-status w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100 appearance-none">
+                        <option value="未开始" ${user.receive_status === '未开始' ? 'selected' : ''}>未开始</option>
+                        <option value="待确认" ${user.receive_status === '待确认' ? 'selected' : ''}>待确认</option>
+                        <option value="已确认" ${user.receive_status === '已确认' ? 'selected' : ''}>已确认</option>
+                        <option value="已放弃" ${user.receive_status === '已放弃' ? 'selected' : ''}>已放弃</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700 dark:text-gray-300">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </div>
+                </div>
+            </td>
+            <td class="py-3 px-4">
+                <input type="date" name="transfer_date" class="transfer-date w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="${user.transfer_date || ''}">
+            </td>
+            <td class="py-3 px-4">
+                <input type="text" name="receiver" class="receiver w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="${user.receiver || ''}">
+            </td>
+            <td class="py-3 px-4">
+                <input type="number" name="progress" class="progress w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100" value="${user.progress || 0}" min="0" max="100">
+            </td>
+            <td class="py-3 px-4">
+                <button class="update-btn bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center" data-user-id="${user.id}">
+                    更新
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    updatePagination();
+    bindUpdateButtons();
+}
+
+// 更新分页导航
+function updatePagination() {
+    const totalPages = Math.ceil(filteredUsers.length / pageSize);
+    const pageNumbers = document.getElementById('pageNumbers');
+    pageNumbers.innerHTML = '';
+
+    for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement('button');
+        button.className = `px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm ${i === currentPage ? 'bg-red-600 text-white' : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
+        button.textContent = i;
+        button.onclick = () => renderTable(i);
+        pageNumbers.appendChild(button);
+    }
+
+    document.getElementById('prevPage').disabled = currentPage === 1;
+    document.getElementById('nextPage').disabled = currentPage === totalPages;
+
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, filteredUsers.length);
+    document.getElementById('currentPageInfo').textContent = `${start}-${end}`;
+    document.getElementById('totalUsers').textContent = filteredUsers.length;
+}
+
+// 搜索和筛选
+function filterUsers() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const identityFilter = document.getElementById('identity_filter').value.toLowerCase();
+    const transferStatusFilter = document.getElementById('transfer_status_filter').value.toLowerCase();
+    const batchFilter = document.getElementById('batchFilter').value.toLowerCase();
+
+    filteredUsers = users.filter(user => {
+        const matchesSearch = !searchTerm ||
+            user.student_id.toLowerCase().includes(searchTerm) ||
+            user.name.toLowerCase().includes(searchTerm) ||
+            user.class_name.toLowerCase().includes(searchTerm);
+
+        const matchesIdentity = !identityFilter ||
+            user.identity_names.join(',').toLowerCase().includes(identityFilter);
+
+        const matchesTransferStatus = !transferStatusFilter ||
+            user.transfer_status.toLowerCase() === transferStatusFilter;
+
+        const matchesBatch = !batchFilter ||
+            (user.batch || '').toLowerCase().includes(batchFilter);
+
+        return matchesSearch && matchesIdentity && matchesTransferStatus && matchesBatch;
+    });
+
+    renderTable(1);
+}
+
+// 绑定更新按钮事件
+function bindUpdateButtons() {
+    document.querySelectorAll('.update-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const userId = this.getAttribute('data-user-id');
+            const row = this.closest('tr');
+            const transferStatus = row.querySelector('.transfer-status').value;
+            const receiveStatus = row.querySelector('.receive-status').value;
+            const receiver = row.querySelector('.receiver').value;
+            const progress = row.querySelector('.progress').value;
+            const transferDate = row.querySelector('.transfer-date').value;
+
+            fetch('{{ url_for("admin_update_transfer_status") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `user_id=${userId}&transfer_status=${transferStatus}&receive_status=${receiveStatus}&receiver=${receiver}&progress=${progress}&transfer_date=${transferDate}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                const message = document.createElement('div');
+                message.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 animate-fadeIn flash-message';
+                if (data.success) {
+                    message.className += ' bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100';
+                    message.innerHTML = `
+                        <i class="fas fa-check-circle"></i>
+                        <span class="flex-1">转接状态更新成功</span>
+                        <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                    `;
+                } else {
+                    message.className += ' bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
+                    message.innerHTML = `
+                        <i class="fas fa-exclamation-circle"></i>
+                        <span class="flex-1">更新失败：${data.error}</span>
+                        <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                    `;
+                }
+                document.body.appendChild(message);
+                setTimeout(() => message.remove(), 5000);
+            })
+            .catch(error => {
+                const errorMessage = document.createElement('div');
+                errorMessage.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100 animate-fadeIn flash-message';
+                errorMessage.innerHTML = `
+                    <i class="fas fa-exclamation-circle"></i>
+                    <span class="flex-1">请求失败：${error}</span>
+                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
+                `;
+                document.body.appendChild(errorMessage);
+                setTimeout(() => errorMessage.remove(), 5000);
+            });
+        });
     });
 }
 
-document.getElementById('identity_filter').addEventListener('change', filterTable);
-document.getElementById('transfer_status_filter').addEventListener('change', filterTable);
+// 事件监听
+document.getElementById('searchInput').addEventListener('input', filterUsers);
+document.getElementById('identity_filter').addEventListener('change', filterUsers);
+document.getElementById('transfer_status_filter').addEventListener('change', filterUsers);
+document.getElementById('batchFilter').addEventListener('input', filterUsers);
+document.getElementById('prevPage').addEventListener('click', () => {
+    if (currentPage > 1) renderTable(currentPage - 1);
+});
+document.getElementById('nextPage').addEventListener('click', () => {
+    if (currentPage < Math.ceil(filteredUsers.length / pageSize)) renderTable(currentPage + 1);
+});
 
-document.querySelectorAll('.update-btn').forEach(button => {
-    button.addEventListener('click', function() {
-        const userId = this.getAttribute('data-user-id');
-        const row = this.closest('tr');
-        const transferStatus = row.querySelector('.transfer-status').value;
-        const receiveStatus = row.querySelector('.receive-status').value;
-        const receiver = row.querySelector('.receiver').value;
-        const progress = row.querySelector('.progress').value;
-        const transferDate = row.querySelector('.transfer-date').value;
-
-        fetch('{{ url_for("admin_update_transfer_status") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `user_id=${userId}&transfer_status=${transferStatus}&receive_status=${receiveStatus}&receiver=${receiver}&progress=${progress}&transfer_date=${transferDate}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            const message = document.createElement('div');
-            message.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 animate-fadeIn flash-message';
-            if (data.success) {
-                message.className += ' bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100';
-                message.innerHTML = `
-                    <i class="fas fa-check-circle"></i>
-                    <span class="flex-1">转接状态更新成功</span>
-                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
-                `;
-            } else {
-                message.className += ' bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
-                message.innerHTML = `
-                    <i class="fas fa-exclamation-circle"></i>
-                    <span class="flex-1">更新失败：${data.error}</span>
-                    <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
-                `;
-            }
-            document.body.appendChild(message);
-            setTimeout(() => message.remove(), 5000);
-        })
-        .catch(error => {
-            const errorMessage = document.createElement('div');
-            errorMessage.className = 'fixed top-4 left-4 z-50 px-4 py-3 rounded shadow-lg text-sm flex items-center space-x-2 bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100 animate-fadeIn flash-message';
-            errorMessage.innerHTML = `
-                <i class="fas fa-exclamation-circle"></i>
-                <span class="flex-1">请求失败：${error}</span>
-                <button onclick="this.closest('.flash-message').remove()" class="text-lg leading-none hover:opacity-70">×</button>
-            `;
-            document.body.appendChild(errorMessage);
-            setTimeout(() => errorMessage.remove(), 5000);
-        });
-    });
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    filterUsers();
 });
 </script>
 {% endblock %}
