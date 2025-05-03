@@ -43,6 +43,18 @@ def init_db():
     ''')
 
     c.execute('''
+        CREATE TABLE material_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            material_id INTEGER NOT NULL,
+            file_data BLOB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE
+        );
+    ''')
+
+    c.execute('''
         CREATE TABLE user_identities (
             user_id INTEGER,
             identity_id INTEGER,

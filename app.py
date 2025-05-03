@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file, Response
 import sqlite3
 from werkzeug.security import check_password_hash, generate_password_hash
 from database import (
@@ -15,13 +15,17 @@ from database import (
 )
 import json
 import logging
+import io
+from openpyxl import Workbook
+from openpyxl.styles import Font, Alignment, PatternFill
+from datetime import datetime
 
 # 配置日志记录器
 logging.basicConfig(
     level=logging.ERROR,
     format='%(asctime)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler()         # 同时输出到控制台
+        logging.StreamHandler()
     ]
 )
 logger = logging.getLogger(__name__)
@@ -31,18 +35,13 @@ app.secret_key = 'your-secret-key-here'  # Replace with a secure key in producti
 
 # Define add_role filter
 def add_role_filter(value, cultivators):
-    """
-    Jinja2 filter to format cultivator name with role, e.g., '李四（教师）'.
-    """
     for cultivator in cultivators:
         if cultivator['name'] == value:
             return f"{value}（{cultivator['role']}）"
     return value
 
-# Register the filter with Jinja2
 app.jinja_env.filters['add_role'] = add_role_filter
 
-# Middleware to check if user is logged in
 def login_required(f):
     def wrap(*args, **kwargs):
         if 'user_id' not in session:
@@ -52,7 +51,6 @@ def login_required(f):
     wrap.__name__ = f.__name__
     return wrap
 
-# Middleware to check if user is admin
 def admin_required(f):
     def wrap(*args, **kwargs):
         if 'user_id' not in session or session.get('is_admin') != 1:
@@ -114,10 +112,8 @@ def transfer():
     user_id = session['user_id']
     logger.debug(f"Transfer route accessed for user_id={user_id}")
     
-    # 确保用户材料记录完整
     initialize_user_materials(user_id)
     
-    # 获取用户学号
     conn = get_db()
     student_id = conn.execute('SELECT student_id FROM users WHERE id = ?', (user_id,)).fetchone()
     conn.close()
@@ -127,7 +123,6 @@ def transfer():
         return redirect(url_for('logout'))
     student_id = student_id['student_id']
     
-    # 获取用户信息、身份、材料、转接状态、签名和培养人
     user = get_user_by_student_id(student_id)
     identities = get_user_identities(user_id)
     materials = get_user_materials(user_id)
@@ -136,14 +131,12 @@ def transfer():
     signature = get_user_signature(user_id)
     cultivators = get_user_cultivators(user_id)
     
-    # 获取每种身份所需的材料
     material_requirements = {
         identity['id']: get_material_requirements(identity['id'])
         for identity in identities
     }
     logger.debug(f"Material requirements: {material_requirements}")
     
-    # 处理 POST 请求（放弃转接）
     if request.method == 'POST':
         action = request.form.get('action')
         if action == 'abandon':
@@ -153,7 +146,6 @@ def transfer():
                 return redirect(url_for('transfer'))
             return redirect(url_for('signature'))
     
-    # 计算资料完整度
     required_material_ids = set()
     for identity in identities:
         for material in material_requirements[identity['id']]:
@@ -163,10 +155,8 @@ def transfer():
     completeness = (complete_materials / total_materials * 100) if total_materials > 0 else 0
     logger.debug(f"Completeness for user_id={user_id}: {complete_materials}/{total_materials} = {completeness:.1f}%")
     
-    # 获取公告
     announcement = get_announcement()
     
-    # 渲染 transfer.html 模板
     return render_template('transfer.html', 
                          identities=identities, 
                          materials=materials, 
@@ -232,7 +222,6 @@ def admin_users():
         action = request.form.get('action')
         try:
             if action == 'add':
-                # 获取表单数据
                 student_id = request.form['student_id']
                 name = request.form['name']
                 password = request.form['password']
@@ -242,17 +231,12 @@ def admin_users():
                 identity_ids = [int(i) for i in request.form.getlist('identities')]
                 cultivator_ids = [int(i) for i in request.form.getlist('cultivators')]
                 
-                # 添加用户
                 user_id = add_user(student_id, name, password, class_name, batch, is_admin)
-                
-                # 更新用户身份和培养人
                 update_user_identities(user_id, identity_ids)
                 update_user_cultivators(user_id, cultivator_ids)
-                
                 flash('用户添加成功', 'success')
                 
             elif action == 'edit':
-                # 获取表单数据
                 user_id = int(request.form['user_id'])
                 student_id = request.form['student_id']
                 name = request.form['name']
@@ -263,13 +247,9 @@ def admin_users():
                 identity_ids = [int(i) for i in request.form.getlist('identities')]
                 cultivator_ids = [int(i) for i in request.form.getlist('cultivators')]
                 
-                # 更新用户
                 update_user(user_id, student_id, name, class_name, batch, is_admin, password)
-                
-                # 更新用户身份和培养人
                 update_user_identities(user_id, identity_ids)
                 update_user_cultivators(user_id, cultivator_ids)
-                
                 flash('用户更新成功', 'success')
                 
             elif action == 'delete':
@@ -286,7 +266,6 @@ def admin_users():
         
         return redirect(url_for('admin_users'))
     
-    # GET请求处理保持不变
     users = get_all_users()
     cultivators = get_all_cultivators()
     identities = get_all_identities()
@@ -359,10 +338,8 @@ def admin_transfer_status():
             GROUP BY u.id
             ORDER BY u.id
         ''').fetchall()
-        # 获取所有政治面貌供筛选
         identities = conn.execute('SELECT DISTINCT name FROM identities').fetchall()
         conn.close()
-        # 转换数据格式
         users = [dict(user) for user in users]
         for user in users:
             user['identity_names'] = user['identity_names'].split(',') if user['identity_names'] else []
@@ -450,8 +427,6 @@ def material_checklist():
 @admin_required
 def api_material_checklist():
     try:
-        page = int(request.args.get('page', 1))
-        per_page = int(request.args.get('per_page', 10))
         search = request.args.get('search', '').strip()
         batch = request.args.get('batch', '').strip()
         identity_id = request.args.get('identity_id', '')
@@ -459,7 +434,6 @@ def api_material_checklist():
 
         conn = get_db()
         with conn:
-            # 构建查询条件
             where_clauses = ["u.is_admin = 0"]
             params = []
             
@@ -478,7 +452,256 @@ def api_material_checklist():
             
             where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
             
-            # 查询用户和材料状态
+            query = f'''
+                WITH UserMaterials AS (
+                    SELECT um.user_id, m.id AS material_id, m.name AS material_name,
+                           COALESCE(um.status, '') AS status,
+                           COALESCE(um.details, '') AS details,
+                           GROUP_CONCAT(im.identity_id) AS identity_ids,
+                           (SELECT COUNT(*) FROM material_images mi WHERE mi.user_id = um.user_id AND mi.material_id = m.id) AS image_count
+                    FROM materials m
+                    LEFT JOIN user_materials um ON m.id = um.material_id
+                    LEFT JOIN identity_materials im ON m.id = im.material_id
+                    GROUP BY m.id, um.user_id
+                ),
+                UserCompleteness AS (
+                    SELECT um.user_id,
+                           CASE
+                               WHEN COUNT(um.status) = 0 THEN 'incomplete'
+                               WHEN SUM(CASE WHEN um.status = '齐全' THEN 1 ELSE 0 END) = COUNT(um.status) THEN 'complete'
+                               WHEN SUM(CASE WHEN um.status = '待审核' THEN 1 ELSE 0 END) = COUNT(um.status) THEN 'pending'
+                               ELSE 'partial'
+                           END AS completeness
+                    FROM UserMaterials um
+                    GROUP BY um.user_id
+                )
+                SELECT u.id, u.student_id, u.name, u.batch, u.class_name,
+                       GROUP_CONCAT(i.id) AS identity_ids,
+                       GROUP_CONCAT(i.name) AS identity_names,
+                       uc.completeness,
+                       ts.transfer_status,
+                       (SELECT json_group_array(
+                           json_object(
+                               'id', um.material_id,
+                               'name', um.material_name,
+                               'status', um.status,
+                               'details', um.details,
+                               'identity_ids', um.identity_ids,
+                               'image_count', um.image_count
+                           )
+                       ) FROM UserMaterials um WHERE um.user_id = u.id) AS materials
+                FROM users u
+                LEFT JOIN user_identities ui ON u.id = ui.user_id
+                LEFT JOIN identities i ON ui.identity_id = i.id
+                LEFT JOIN UserCompleteness uc ON u.id = uc.user_id
+                LEFT JOIN transfer_status ts ON u.id = ts.user_id
+                WHERE {where_clause}
+                {'AND uc.completeness = ?' if completeness != 'all' else ''}
+                GROUP BY u.id
+                ORDER BY u.id
+            '''
+            if completeness != 'all':
+                params.append(completeness)
+            
+            users = conn.execute(query, params).fetchall()
+            
+            count_query = f'''
+                SELECT COUNT(DISTINCT u.id)
+                FROM users u
+                LEFT JOIN user_identities ui ON u.id = ui.user_id
+                WHERE {where_clause}
+            '''
+            count_params = params[:-1] if completeness != 'all' else params
+            total_users = conn.execute(count_query, count_params).fetchone()[0]
+            
+            materials = conn.execute('''
+                SELECT m.id, m.name, GROUP_CONCAT(im.identity_id) AS identity_ids
+                FROM materials m
+                LEFT JOIN identity_materials im ON m.id = im.material_id
+                GROUP BY m.id
+                ORDER BY m.id
+            ''').fetchall()
+
+        users_data = []
+        for user in users:
+            user_dict = dict(user)
+            user_dict['identity_ids'] = [int(i) for i in (user['identity_ids'].split(',') if user['identity_ids'] else [])]
+            user_dict['identity_names'] = user['identity_names'].split(',') if user['identity_names'] else []
+            user_dict['materials'] = json.loads(user['materials'])
+            for material in user_dict['materials']:
+                material['identity_ids'] = [int(i) for i in (material['identity_ids'].split(',') if material['identity_ids'] else [])]
+            users_data.append(user_dict)
+        
+        materials_data = [dict(m) for m in materials]
+        for m in materials_data:
+            m['identity_ids'] = [int(i) for i in (m['identity_ids'].split(',') if m['identity_ids'] else [])]
+        
+        return jsonify({
+            'success': True,
+            'users': users_data,
+            'materials': materials_data,
+            'identities': [dict(i) for i in get_all_identities()],
+            'total_users': total_users
+        })
+    except Exception as e:
+        logger.error(f"Error fetching material checklist: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/api/update_user_material', methods=['POST'])
+@admin_required
+def update_user_material():
+    try:
+        data = request.form
+        user_id = int(data['user_id'])
+        material_id = int(data['material_id'])
+        status = data['status']
+        details = data.get('details', '')
+
+        conn = get_db()
+        with conn:
+            exists = conn.execute('''
+                SELECT 1 FROM user_materials WHERE user_id = ? AND material_id = ?
+            ''', (user_id, material_id)).fetchone()
+            if exists:
+                conn.execute('''
+                    UPDATE user_materials
+                    SET status = ?, details = ?
+                    WHERE user_id = ? AND material_id = ?
+                ''', (status, details, user_id, material_id))
+            else:
+                conn.execute('''
+                    INSERT INTO user_materials (user_id, material_id, status, details)
+                    VALUES (?, ?, ?, ?)
+                ''', (user_id, material_id, status, details))
+        logger.debug(f"Updated material for user_id={user_id}, material_id={material_id}: status={status}")
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error updating material for user_id={user_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/api/upload_material_image', methods=['POST'])
+@admin_required
+def upload_material_image():
+    try:
+        user_id = int(request.form['user_id'])
+        material_id = int(request.form['material_id'])
+        if 'file' not in request.files or not request.files['file']:
+            return jsonify({'success': False, 'error': '未选择文件'}), 400
+        
+        file = request.files['file']
+        if file.mimetype not in ['image/png', 'image/jpeg', 'application/pdf']:
+            return jsonify({'success': False, 'error': '仅支持 PNG、JPEG 或 PDF 格式'}), 400
+        
+        file_data = file.read()
+        if len(file_data) > 50 * 1024 * 1024:  # Limit to 5MB
+            return jsonify({'success': False, 'error': '文件大小不能超过 5MB'}), 400
+
+        conn = get_db()
+        with conn:
+            conn.execute('''
+                INSERT INTO material_images (user_id, material_id, file_data)
+                VALUES (?, ?, ?)
+            ''', (user_id, material_id, file_data))
+        
+        logger.debug(f"Uploaded image for user_id={user_id}, material_id={material_id}")
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error uploading image for user_id={user_id}, material_id={material_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/api/material_image/<int:user_id>/<int:material_id>/<int:image_id>')
+@admin_required
+def get_material_image(user_id, material_id, image_id):
+    try:
+        conn = get_db()
+        result = conn.execute('''
+            SELECT file_data FROM material_images
+            WHERE user_id = ? AND material_id = ? AND id = ?
+        ''', (user_id, material_id, image_id)).fetchone()
+        conn.close()
+        
+        if not result:
+            return jsonify({'success': False, 'error': '未找到图片'}), 404
+        
+        file_data = result['file_data']
+        mime_type = 'image/jpeg' if file_data.startswith(b'\xff\xd8') else 'image/png'
+        return Response(file_data, mimetype=mime_type)
+    except Exception as e:
+        logger.error(f"Error retrieving image for user_id={user_id}, material_id={material_id}, image_id={image_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/api/material_images/<int:user_id>/<int:material_id>', methods=['GET'])
+@admin_required
+def get_material_images(user_id, material_id):
+    try:
+        conn = get_db()
+        images = conn.execute('''
+            SELECT id, created_at
+            FROM material_images
+            WHERE user_id = ? AND material_id = ?
+            ORDER BY created_at
+        ''', (user_id, material_id)).fetchall()
+        conn.close()
+        
+        images_data = [{'id': img['id'], 'created_at': img['created_at']} for img in images]
+        return jsonify({'success': True, 'images': images_data})
+    except Exception as e:
+        logger.error(f"Error retrieving images for user_id={user_id}, material_id={material_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/api/delete_material_image', methods=['POST'])
+@admin_required
+def delete_material_image():
+    try:
+        image_id = int(request.form['image_id'])
+        conn = get_db()
+        with conn:
+            result = conn.execute('''
+                DELETE FROM material_images WHERE id = ?
+            ''', (image_id,)).rowcount
+        if result == 0:
+            return jsonify({'success': False, 'error': '图片不存在'}), 404
+        logger.debug(f"Deleted image_id={image_id}")
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error deleting image_id={image_id}: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/archive_overview')
+@admin_required
+def archive_overview():
+    identities = get_all_identities()
+    return render_template('admin_archive_overview.html', identities=identities)
+
+@app.route('/admin/api/export_archive', methods=['GET'])
+@admin_required
+def export_archive():
+    try:
+        search = request.args.get('search', '').strip()
+        batch = request.args.get('batch', '').strip()
+        identity_id = request.args.get('identity_id', '')
+        completeness = request.args.get('completeness', 'all')
+
+        conn = get_db()
+        with conn:
+            where_clauses = ["u.is_admin = 0"]
+            params = []
+            
+            if search:
+                where_clauses.append("(u.student_id LIKE ? OR u.name LIKE ? OR u.class_name LIKE ?)")
+                search_term = f"%{search}%"
+                params.extend([search_term, search_term, search_term])
+            
+            if batch:
+                where_clauses.append("u.batch LIKE ?")
+                params.append(f"%{batch}%")
+            
+            if identity_id:
+                where_clauses.append("ui.identity_id = ?")
+                params.append(int(identity_id))
+            
+            where_clause = " AND ".join(where_clauses) if where_clauses else "1=1"
+            
             query = f'''
                 WITH UserMaterials AS (
                     SELECT um.user_id, m.id AS material_id, m.name AS material_name,
@@ -502,114 +725,82 @@ def api_material_checklist():
                     GROUP BY um.user_id
                 )
                 SELECT u.id, u.student_id, u.name, u.batch, u.class_name,
-                       GROUP_CONCAT(i.id) AS identity_ids,
                        GROUP_CONCAT(i.name) AS identity_names,
                        uc.completeness,
-                       (SELECT json_group_array(
-                           json_object(
-                               'id', um.material_id,
-                               'name', um.material_name,
-                               'status', um.status,
-                               'details', um.details,
-                               'identity_ids', um.identity_ids
-                           )
-                       ) FROM UserMaterials um WHERE um.user_id = u.id) AS materials
+                       ts.transfer_status
                 FROM users u
                 LEFT JOIN user_identities ui ON u.id = ui.user_id
                 LEFT JOIN identities i ON ui.identity_id = i.id
                 LEFT JOIN UserCompleteness uc ON u.id = uc.user_id
+                LEFT JOIN transfer_status ts ON u.id = ts.user_id
                 WHERE {where_clause}
                 {'AND uc.completeness = ?' if completeness != 'all' else ''}
                 GROUP BY u.id
                 ORDER BY u.id
-                LIMIT ? OFFSET ?
             '''
             if completeness != 'all':
                 params.append(completeness)
-            params.extend([per_page, (page - 1) * per_page])
             
             users = conn.execute(query, params).fetchall()
-            
-            # 查询总记录数
-            count_query = f'''
-                SELECT COUNT(DISTINCT u.id)
-                FROM users u
-                LEFT JOIN user_identities ui ON u.id = ui.user_id
-                WHERE {where_clause}
-            '''
-            count_params = params[:-2] if completeness != 'all' else params[:-2]
-            total_users = conn.execute(count_query, count_params).fetchone()[0]
-            
-            # 获取所有材料
-            materials = conn.execute('''
-                SELECT m.id, m.name, GROUP_CONCAT(im.identity_id) AS identity_ids
-                FROM materials m
-                LEFT JOIN identity_materials im ON m.id = im.material_id
-                GROUP BY m.id
-                ORDER BY m.id
-            ''').fetchall()
 
-        # 格式化数据
-        users_data = []
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "档案概览"
+
+        headers = ['学号', '姓名', '批次', '班级', '政治身份', '材料齐全度', '转接状态']
+        ws.append(headers)
+
+        header_font = Font(bold=True)
+        header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        completeness_map = {
+            'complete': '齐全',
+            'incomplete': '不齐全',
+            'partial': '部分齐全',
+            'pending': '待审核'
+        }
         for user in users:
-            user_dict = dict(user)
-            user_dict['identity_ids'] = [int(i) for i in (user['identity_ids'].split(',') if user['identity_ids'] else [])]
-            user_dict['identity_names'] = user['identity_names'].split(',') if user['identity_names'] else []
-            user_dict['materials'] = json.loads(user['materials'])
-            for material in user_dict['materials']:
-                material['identity_ids'] = [int(i) for i in (material['identity_ids'].split(',') if material['identity_ids'] else [])]
-            users_data.append(user_dict)
-        
-        materials_data = [dict(m) for m in materials]
-        for m in materials_data:
-            m['identity_ids'] = [int(i) for i in (m['identity_ids'].split(',') if m['identity_ids'] else [])]
-        
-        return jsonify({
-            'success': True,
-            'users': users_data,
-            'materials': materials_data,
-            'identities': [dict(i) for i in get_all_identities()],
-            'total_users': total_users,
-            'total_pages': (total_users + per_page - 1) // per_page
-        })
-    except Exception as e:
-        logger.error(f"Error fetching material checklist: {str(e)}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+            ws.append([
+                user['student_id'],
+                user['name'],
+                user['batch'] or '未分配',
+                user['class_name'] or '未知',
+                user['identity_names'] or '无',
+                completeness_map.get(user['completeness'], user['completeness']),
+                user['transfer_status'] or '未开始'
+            ])
 
-@app.route('/admin/update_user_material', methods=['POST'])
-@admin_required
-def update_user_material():
-    try:
-        data = request.get_json()
-        user_id = data['user_id']
-        updates = data['updates']
-        
-        conn = get_db()
-        with conn:
-            for update in updates:
-                material_id = update['material_id']
-                status = update['status']
-                details = update.get('details', '')
-                if not status:
-                    raise ValueError(f"Invalid status for material_id={material_id}")
-                exists = conn.execute('''
-                    SELECT 1 FROM user_materials WHERE user_id = ? AND material_id = ?
-                ''', (user_id, material_id)).fetchone()
-                if exists:
-                    conn.execute('''
-                        UPDATE user_materials
-                        SET status = ?, details = ?
-                        WHERE user_id = ? AND material_id = ?
-                    ''', (status, details, user_id, material_id))
-                else:
-                    conn.execute('''
-                        INSERT INTO user_materials (user_id, material_id, status, details)
-                        VALUES (?, ?, ?, ?)
-                    ''', (user_id, material_id, status, details))
-        logger.debug(f"Updated materials for user_id={user_id}: {updates}")
-        return jsonify({'success': True})
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = (max_length + 2) * 1.2
+            ws.column_dimensions[column].width = adjusted_width
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'archive_overview_{timestamp}.xlsx'
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
     except Exception as e:
-        logger.error(f"Error updating materials for user_id={user_id}: {str(e)}")
+        logger.error(f"Error exporting archive: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/cultivators', methods=['GET', 'POST'])
