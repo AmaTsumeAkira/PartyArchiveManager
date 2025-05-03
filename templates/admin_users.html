@@ -15,6 +15,37 @@
         </div>
     </header>
 
+    <!-- Search and Filter -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 animate-fadeIn">
+        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 mb-6">
+            <div class="flex-1 mb-4 md:mb-0">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">搜索用户</label>
+                <input type="text" id="searchInput" placeholder="输入学号、姓名或班级" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div class="flex-1 mb-4 md:mb-0">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">筛选身份</label>
+                <select id="identityFilter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">全部身份</option>
+                    {% for identity in identities %}
+                    <option value="{{ identity.id }}">{{ identity.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1 mb-4 md:mb-0">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">筛选管理员</label>
+                <select id="adminFilter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">全部</option>
+                    <option value="true">是</option>
+                    <option value="false">否</option>
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">筛选批次</label>
+                <input type="text" id="batchFilter" placeholder="输入批次" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+        </div>
+    </div>
+
     <!-- User Table -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
         <div class="flex justify-between items-center mb-6">
@@ -34,49 +65,28 @@
                         <th class="py-3 px-4">操作</th>
                     </tr>
                 </thead>
-                <tbody>
-                    {% for user in users %}
-                    <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover: transition">
-                        <td class="py-3 px-4">{{ user.student_id }}</td>
-                        <td class="py-3 px-4">{{ user.name }}</td>
-                        <td class="py-3 px-4">{{ user.class_name }}</td>
-                        <td class="py-3 px-4">{{ user.batch or '无' }}</td>
-                        <td class="py-3 px-4">{{ user.identity_names|join(', ') or '无' }}</td>
-                        <td class="py-3 px-4">
-                            {% for cultivator in cultivators %}
-                                {% if cultivator.id in user.cultivator_ids %}
-                                    {{ cultivator.name|add_role(cultivators) }}{% if not loop.last %}, {% endif %}
-                                {% endif %}
-                            {% endfor %}
-                        </td>
-                        <td class="py-3 px-4">
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                            {% if user.is_admin %} bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100 
-                            {% else %} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 {% endif %}">
-                                {{ '是' if user.is_admin else '否' }}
-                            </span>
-                        </td>
-                        <td class="py-3 px-4 space-x-2">
-                            <button onclick='showEditUserModal({{ user|tojson }})' 
-                                    class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition">
-                                <i class="fas fa-edit mr-1"></i> 编辑
-                            </button>
-                            <button onclick="showDeleteConfirmModal('{{ user.id }}', '{{ user.name }}')" 
-                                    class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition">
-                                <i class="fas fa-trash mr-1"></i> 删除
-                            </button>
-                        </td>
-                    </tr>
-                    {% endfor %}
+                <tbody id="userTableBody">
+                    <!-- Table rows will be populated by JavaScript -->
                 </tbody>
             </table>
+        </div>
+        <!-- Pagination -->
+        <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+                显示 <span id="currentPageInfo">1-10</span> 共 <span id="totalUsers"></span> 条记录
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevPage" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50" disabled>上一页</button>
+                <div id="pageNumbers" class="flex space-x-1"></div>
+                <button id="nextPage" class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50">下一页</button>
+            </div>
         </div>
     </div>
 </div>
 
 <!-- Add User Modal -->
-<div id="addUserModal" class="fixed inset-0  bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-2xl mx-auto overflow-y-auto" style="max-height: 90vh;">
+<div id="addUserModal" class="fixed top-0 left-0 w-full h-screen bg-opacity-50 hidden flex items-center justify-center z-50 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-2xl mx-4 overflow-auto">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">添加用户</h3>
             <button onclick="closeAddUserModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
@@ -156,8 +166,8 @@
 </div>
 
 <!-- Edit User Modal -->
-<div id="editUserModal" class="fixed inset-0  bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-2xl mx-auto overflow-y-auto" style="max-height: 90vh;">
+<div id="editUserModal" class="fixed top-0 left-0 w-full h-screen bg-opacity-50 hidden flex items-center justify-center z-50 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-2xl mx-4 overflow-auto">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">编辑用户</h3>
             <button onclick="closeEditUserModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
@@ -238,8 +248,8 @@
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div id="deleteConfirmModal" class="fixed inset-0 bg-opacity-50 hidden flex items-center justify-center z-50 p-4 animate-fadeIn">
-    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full">
+<div id="deleteConfirmModal" class="fixed top-0 left-0 w-full h-screen bg-opacity-50 hidden flex items-center justify-center z-50 animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full mx-4 overflow-auto">
         <div class="flex justify-between items-center mb-4">
             <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">确认删除</h3>
             <button onclick="closeDeleteConfirmModal()" class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
@@ -267,6 +277,131 @@
 
 {% block scripts %}
 <script>
+// 用户数据
+const users = {{ users|tojson }};
+const cultivators = {{ cultivators|tojson }};
+const pageSize = 10;
+let currentPage = 1;
+let filteredUsers = [...users];
+
+// 渲染表格
+function renderTable(page = 1) {
+    currentPage = page;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const paginatedUsers = filteredUsers.slice(start, end);
+
+    const tbody = document.getElementById('userTableBody');
+    tbody.innerHTML = '';
+
+    paginatedUsers.forEach(user => {
+        const row = document.createElement('tr');
+        row.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover: transition';
+        row.innerHTML = `
+            <td class="py-3 px-4">${user.student_id}</td>
+            <td class="py-3 px-4">${user.name}</td>
+            <td class="py-3 px-4">${user.class_name}</td>
+            <td class="py-3 px-4">${user.batch || '无'}</td>
+            <td class="py-3 px-4">${user.identity_names?.join(', ') || '无'}</td>
+            <td class="py-3 px-4">
+                ${cultivators
+                    .filter(c => user.cultivator_ids.includes(c.id))
+                    .map(c => c.name)
+                    .join(', ') || ''}
+            </td>
+            <td class="py-3 px-4">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
+                    ${user.is_admin ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}">
+                    ${user.is_admin ? '是' : '否'}
+                </span>
+            </td>
+            <td class="py-3 px-4 space-x-2">
+                <button onclick='showEditUserModal(${JSON.stringify(user)})' 
+                        class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition">
+                    <i class="fas fa-edit mr-1"></i> 编辑
+                </button>
+                <button onclick="showDeleteConfirmModal('${user.id}', '${user.name}')" 
+                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition">
+                    <i class="fas fa-trash mr-1"></i> 删除
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    updatePagination();
+}
+
+// 更新分页导航
+function updatePagination() {
+    const totalPages = Math.ceil(filteredUsers.length / pageSize);
+    const pageNumbers = document.getElementById('pageNumbers');
+    pageNumbers.innerHTML = '';
+
+    for (let i = 1; i <= totalPages; i++) {
+        const button = document.createElement('button');
+        button.className = `px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm ${i === currentPage ? 'bg-red-600 text-white' : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
+        button.textContent = i;
+        button.onclick = () => renderTable(i);
+        pageNumbers.appendChild(button);
+    }
+
+    document.getElementById('prevPage').disabled = currentPage === 1;
+    document.getElementById('nextPage').disabled = currentPage === totalPages;
+
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, filteredUsers.length);
+    document.getElementById('currentPageInfo').textContent = `${start}-${end}`;
+    document.getElementById('totalUsers').textContent = filteredUsers.length;
+}
+
+// 搜索和筛选
+function filterUsers() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const identityFilter = document.getElementById('identityFilter').value;
+    const adminFilter = document.getElementById('adminFilter').value;
+    const batchFilter = document.getElementById('batchFilter').value.toLowerCase();
+
+    filteredUsers = users.filter(user => {
+        const matchesSearch = !searchTerm ||
+            user.student_id.toLowerCase().includes(searchTerm) ||
+            user.name.toLowerCase().includes(searchTerm) ||
+            user.class_name.toLowerCase().includes(searchTerm);
+
+        const matchesIdentity = !identityFilter ||
+            user.identity_ids.includes(parseInt(identityFilter));
+
+        const matchesAdmin = !adminFilter ||
+            (adminFilter === 'true' && user.is_admin) ||
+            (adminFilter === 'false' && !user.is_admin);
+
+        const matchesBatch = !batchFilter ||
+            (user.batch || '').toLowerCase().includes(batchFilter);
+
+        return matchesSearch && matchesIdentity && matchesAdmin && matchesBatch;
+    });
+
+    renderTable(1);
+}
+
+// 事件监听
+document.getElementById('searchInput').addEventListener('input', filterUsers);
+document.getElementById('identityFilter').addEventListener('change', filterUsers);
+document.getElementById('adminFilter').addEventListener('change', filterUsers);
+document.getElementById('batchFilter').addEventListener('input', filterUsers);
+document.getElementById('prevPage').addEventListener('click', () => {
+    if (currentPage > 1) renderTable(currentPage - 1);
+});
+document.getElementById('nextPage').addEventListener('click', () => {
+    if (currentPage < Math.ceil(filteredUsers.length / pageSize)) renderTable(currentPage + 1);
+});
+
+// 初始化
+document.addEventListener('DOMContentLoaded', () => {
+    filterUsers();
+});
+
+// 模态框相关函数
 function showAddUserModal() {
     document.getElementById('addUserModal').classList.remove('hidden');
     document.body.classList.add('overflow-hidden');
@@ -285,13 +420,11 @@ function showEditUserModal(user) {
     document.getElementById('edit_batch').value = user.batch || '';
     document.getElementById('edit_is_admin').checked = user.is_admin;
 
-    // Set identities
     const identitySelect = document.getElementById('edit_identities');
     for (let option of identitySelect.options) {
         option.selected = user.identity_ids.includes(parseInt(option.value));
     }
 
-    // Set cultivators
     const cultivatorSelect = document.getElementById('edit_cultivators');
     for (let option of cultivatorSelect.options) {
         option.selected = user.cultivator_ids.includes(parseInt(option.value));
@@ -318,7 +451,7 @@ function closeDeleteConfirmModal() {
     document.body.classList.remove('overflow-hidden');
 }
 
-// Click outside to close modals
+// 点击外部关闭模态框
 window.onclick = function(event) {
     if (event.target === document.getElementById('addUserModal') || 
         event.target === document.getElementById('editUserModal') || 
