@@ -11,11 +11,12 @@ from database import (
     get_user_signature, get_user_cultivators, get_all_cultivators, add_cultivator,
     update_cultivator, delete_cultivator, get_user_cultivator_ids, update_user_cultivators,
     clean_unused_materials, delete_material, get_all_identities, update_user_identities,
-    reset_user_data, get_user_identity_ids
+    reset_user_data, get_user_identity_ids, log_operation, get_operation_logs
 )
 import json
 import logging
 import io
+import os
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from datetime import datetime
@@ -31,7 +32,11 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Replace with a secure key in production
+app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32).hex())  # Use env var or generate random key
+
+# 确保数据库表存在
+from database import ensure_operation_logs_table
+ensure_operation_logs_table()
 
 # Define add_role filter
 def add_role_filter(value, cultivators):
@@ -78,6 +83,7 @@ def login():
             session['is_admin'] = user['is_admin']
             logger.debug(f"User logged in: student_id={student_id}, user_id={user['id']}, is_admin={user['is_admin']}")
             if user['is_admin']:
+                log_operation(user['id'], student_id, '管理员登录')
                 return redirect(url_for('admin'))
             return redirect(url_for('transfer_popup'))
         flash('学号或密码错误', 'error')
@@ -115,8 +121,10 @@ def transfer():
     initialize_user_materials(user_id)
     
     conn = get_db()
-    student_id = conn.execute('SELECT student_id FROM users WHERE id = ?', (user_id,)).fetchone()
-    conn.close()
+    try:
+        student_id = conn.execute('SELECT student_id FROM users WHERE id = ?', (user_id,)).fetchone()
+    finally:
+        conn.close()
     if not student_id:
         logger.error(f"No user found for user_id={user_id}")
         flash('用户不存在', 'error')
@@ -182,6 +190,7 @@ def signature():
         signature_data = request.form['signature']
         update_transfer_status(user_id, '已放弃', '已放弃', abandoned=True)
         save_signature(user_id, signature_data)
+        log_operation(session['user_id'], session.get('student_id', '用户'), '放弃档案转接')
         flash('已放弃档案转接', 'success')
         return redirect(url_for('transfer'))
     
@@ -234,6 +243,7 @@ def admin_users():
                 user_id = add_user(student_id, name, password, class_name, batch, is_admin)
                 update_user_identities(user_id, identity_ids)
                 update_user_cultivators(user_id, cultivator_ids)
+                log_operation(session['user_id'], session.get('student_id', '管理员'), '添加用户', f'{name}({student_id})')
                 flash('用户添加成功', 'success')
                 
             elif action == 'edit':
@@ -250,11 +260,13 @@ def admin_users():
                 update_user(user_id, student_id, name, class_name, batch, is_admin, password)
                 update_user_identities(user_id, identity_ids)
                 update_user_cultivators(user_id, cultivator_ids)
+                log_operation(session['user_id'], session.get('student_id', '管理员'), '修改用户', f'{name}({student_id})')
                 flash('用户更新成功', 'success')
                 
             elif action == 'delete':
                 user_id = int(request.form['user_id'])
                 delete_user(user_id)
+                log_operation(session['user_id'], session.get('student_id', '管理员'), '删除用户', f'ID:{user_id}')
                 flash('用户删除成功', 'success')
                 
         except sqlite3.IntegrityError as e:
@@ -296,6 +308,7 @@ def apply_transfer():
         return redirect(url_for('transfer'))
     try:
         update_transfer_status(user_id, '处理中', '待确认', receiver=receiver, progress=25)
+        log_operation(session['user_id'], session.get('student_id', '用户'), '提交转接申请', receiver)
         flash('转接申请提交成功', 'success')
     except Exception as e:
         logger.error(f"Error applying transfer for user_id={user_id}: {str(e)}")
@@ -314,6 +327,7 @@ def admin_update_transfer_status():
         transfer_date = request.form.get('transfer_date', '')
         update_transfer_status(user_id, transfer_status, receive_status, 
                              receiver=receiver, progress=progress, transfer_date=transfer_date)
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '更新转接状态', f'用户ID:{user_id}', f'{transfer_status}/{receive_status}')
         flash('转接状态更新成功', 'success')
         return jsonify({'success': True})
     except Exception as e:
@@ -362,6 +376,7 @@ def reset_users():
                 return redirect(url_for('reset_users'))
             for user_id in user_ids:
                 reset_user_data(user_id)
+            log_operation(session['user_id'], session.get('student_id', '管理员'), '初始化用户数据', f'{len(user_ids)}个用户')
             flash(f'已成功初始化 {len(user_ids)} 个用户的数据', 'success')
         except Exception as e:
             flash(f'初始化失败：{str(e)}', 'error')
@@ -593,7 +608,7 @@ def upload_material_image():
             return jsonify({'success': False, 'error': '仅支持 PNG、JPEG 或 PDF 格式'}), 400
         
         file_data = file.read()
-        if len(file_data) > 50 * 1024 * 1024:  # Limit to 5MB
+        if len(file_data) > 5 * 1024 * 1024:  # Limit to 5MB
             return jsonify({'success': False, 'error': '文件大小不能超过 5MB'}), 400
 
         conn = get_db()
@@ -813,16 +828,19 @@ def admin_cultivators():
                 name = request.form['name']
                 role = request.form['role']
                 add_cultivator(name, role)
+                log_operation(session['user_id'], session.get('student_id', '管理员'), '添加培养人', f'{name}({role})')
                 flash('培养人添加成功', 'success')
             elif action == 'edit':
                 cultivator_id = request.form['cultivator_id']
                 name = request.form['name']
                 role = request.form['role']
                 update_cultivator(cultivator_id, name, role)
+                log_operation(session['user_id'], session.get('student_id', '管理员'), '修改培养人', f'{name}({role})')
                 flash('培养人更新成功', 'success')
             elif action == 'delete':
                 cultivator_id = request.form['cultivator_id']
                 delete_cultivator(cultivator_id)
+                log_operation(session['user_id'], session.get('student_id', '管理员'), '删除培养人', f'ID:{cultivator_id}')
                 flash('培养人删除成功', 'success')
         except Exception as e:
             flash(f'操作失败：{str(e)}', 'error')
@@ -854,6 +872,7 @@ def update_announcement_route():
         content = request.form['content']
         update_date = request.form['update_date']
         update_announcement(content, update_date)
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '更新公告')
         flash('公告更新成功', 'success')
     except Exception as e:
         flash(f'公告更新失败：{str(e)}', 'error')
@@ -878,11 +897,18 @@ def update_help():
     try:
         content = request.form['content']
         update_help_content(content)
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '更新帮助内容')
         flash('帮助内容更新成功', 'success')
     except Exception as e:
         flash(f'帮助内容更新失败：{str(e)}', 'error')
         logger.error(f"Error updating help content: {str(e)}")
     return redirect(url_for('admin'))
 
+@app.route('/admin/operation_logs')
+@admin_required
+def operation_logs():
+    logs = get_operation_logs(limit=100)
+    return render_template('admin_operation_logs.html', logs=logs)
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8888)
+    app.run(debug=False, host='0.0.0.0', port=8888)

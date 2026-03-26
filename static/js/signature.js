@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', function() {
     const canvas = document.getElementById('signatureCanvas');
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     let isDrawing = false;
     let lastX = 0;

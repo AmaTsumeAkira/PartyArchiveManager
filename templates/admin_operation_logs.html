@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}操作日志 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">操作日志</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理员的关键操作记录，最近 100 条</p>
+            </div>
+            <a href="{{ url_for('admin') }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition">
+                <i class="fas fa-arrow-left mr-1"></i> 返回仪表盘
+            </a>
+        </div>
+    </header>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden animate-fadeIn">
+        {% if logs %}
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                    <tr>
+                        <th class="py-3 px-4">时间</th>
+                        <th class="py-3 px-4">操作人</th>
+                        <th class="py-3 px-4">操作类型</th>
+                        <th class="py-3 px-4">操作目标</th>
+                        <th class="py-3 px-4">详情</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <td class="py-3 px-4 whitespace-nowrap">{{ log.created_at }}</td>
+                        <td class="py-3 px-4">{{ log.operator_name }}</td>
+                        <td class="py-3 px-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if '删除' in log.action %} bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100
+                                {% elif '添加' in log.action %} bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                                {% elif '修改' in log.action or '更新' in log.action %} bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100
+                                {% elif '初始化' in log.action %} bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100
+                                {% else %} bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300 {% endif %}">
+                                {{ log.action }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4">{{ log.target or '-' }}</td>
+                        <td class="py-3 px-4 text-gray-500 dark:text-gray-400">{{ log.details or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-8 text-center">
+            <i class="fas fa-clipboard-list text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
+            <p class="text-gray-500 dark:text-gray-400">暂无操作日志记录</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

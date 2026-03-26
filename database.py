@@ -711,3 +711,50 @@ def update_user_cultivators(user_id, cultivator_ids):
                 conn.execute('INSERT OR IGNORE INTO user_cultivators (user_id, cultivator_id) VALUES (?, ?)', (user_id, cultivator_id))
     finally:
         conn.close()
+
+def log_operation(operator_id, operator_name, action, target=None, details=None):
+    """记录管理员操作日志"""
+    try:
+        conn = get_db()
+        with conn:
+            conn.execute('''
+                INSERT INTO operation_logs (operator_id, operator_name, action, target, details, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (operator_id, operator_name, action, target, details, datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    finally:
+        conn.close()
+
+def get_operation_logs(limit=50):
+    """获取操作日志"""
+    try:
+        conn = get_db()
+        with conn:
+            logs = conn.execute('''
+                SELECT id, operator_name, action, target, details, created_at
+                FROM operation_logs
+                ORDER BY created_at DESC
+                LIMIT ?
+            ''', (limit,)).fetchall()
+        return logs
+    finally:
+        conn.close()
+
+def ensure_operation_logs_table():
+    """确保操作日志表存在"""
+    try:
+        conn = get_db()
+        with conn:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS operation_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    operator_id INTEGER NOT NULL,
+                    operator_name TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    target TEXT,
+                    details TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (operator_id) REFERENCES users(id)
+                )
+            ''')
+    finally:
+        conn.close()

@@ -21,6 +21,8 @@ def init_db():
     c.execute('DROP TABLE IF EXISTS help_content')
     c.execute('DROP TABLE IF EXISTS cultivators')
     c.execute('DROP TABLE IF EXISTS user_cultivators')
+    c.execute('DROP TABLE IF EXISTS material_images')
+    c.execute('DROP TABLE IF EXISTS operation_logs')
 
     # Create tables
     c.execute('''
@@ -43,18 +45,6 @@ def init_db():
     ''')
 
     c.execute('''
-        CREATE TABLE material_images (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            user_id INTEGER NOT NULL,
-            material_id INTEGER NOT NULL,
-            file_data BLOB NOT NULL,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-            FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE
-        );
-    ''')
-
-    c.execute('''
         CREATE TABLE user_identities (
             user_id INTEGER,
             identity_id INTEGER,
@@ -69,6 +59,18 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE
         )
+    ''')
+
+    c.execute('''
+        CREATE TABLE material_images (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            material_id INTEGER NOT NULL,
+            file_data BLOB NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (material_id) REFERENCES materials(id) ON DELETE CASCADE
+        );
     ''')
 
     c.execute('''
@@ -153,6 +155,19 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users(id),
             FOREIGN KEY (cultivator_id) REFERENCES cultivators(id),
             PRIMARY KEY (user_id, cultivator_id)
+        )
+    ''')
+
+    c.execute('''
+        CREATE TABLE operation_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            operator_id INTEGER NOT NULL,
+            operator_name TEXT NOT NULL,
+            action TEXT NOT NULL,
+            target TEXT,
+            details TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (operator_id) REFERENCES users(id)
         )
     ''')
 
