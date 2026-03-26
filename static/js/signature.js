@@ -65,12 +65,18 @@ document.addEventListener('DOMContentLoaded', function() {
         draw(e);
     }
 
-    document.getElementById('clearCanvas').addEventListener('click', function() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
+    const clearBtn = document.getElementById('clearCanvas');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        });
+    }
 
-    document.getElementById('signatureForm').addEventListener('submit', function(e) {
-        const signatureData = canvas.toDataURL();
-        document.getElementById('signatureData').value = signatureData;
-    });
+    const sigForm = document.getElementById('signatureForm');
+    if (sigForm) {
+        sigForm.addEventListener('submit', function(e) {
+            const signatureData = canvas.toDataURL();
+            document.getElementById('signatureData').value = signatureData;
+        });
+    }
 });

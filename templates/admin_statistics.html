@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+{% block title %}数据统计 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">数据统计</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">系统核心数据概览与图表分析</p>
+            </div>
+            <a href="{{ url_for('admin') }}" class="text-sm text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition flex items-center">
+                <i class="fas fa-arrow-left mr-1"></i> 返回仪表盘
+            </a>
+        </div>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 animate-fadeIn">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">用户总数</p>
+            <p class="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">{{ total_users }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 animate-fadeIn">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">已完成转接</p>
+            <p class="mt-1 text-2xl font-bold text-green-600 dark:text-green-400">{{ total_completed }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 animate-fadeIn">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">处理中</p>
+            <p class="mt-1 text-2xl font-bold text-yellow-600 dark:text-yellow-400">{{ total_processing }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 animate-fadeIn">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">已放弃</p>
+            <p class="mt-1 text-2xl font-bold text-red-600 dark:text-red-400">{{ total_abandoned }}</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 animate-fadeIn">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">平均完整度</p>
+            <p class="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">{{ avg_completeness }}%</p>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Identity Distribution -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                <i class="fas fa-id-card text-indigo-600 dark:text-indigo-400 mr-2"></i>政治身份分布
+            </h3>
+            <div class="h-64">
+                <canvas id="identityChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Transfer Status -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                <i class="fas fa-exchange-alt text-indigo-600 dark:text-indigo-400 mr-2"></i>转接状态统计
+            </h3>
+            <div class="h-64">
+                <canvas id="transferChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Completeness Distribution -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                <i class="fas fa-check-circle text-indigo-600 dark:text-indigo-400 mr-2"></i>材料齐全度分布
+            </h3>
+            <div class="h-64">
+                <canvas id="completenessChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Batch Distribution -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+                <i class="fas fa-layer-group text-indigo-600 dark:text-indigo-400 mr-2"></i>批次用户分布
+            </h3>
+            <div class="h-64">
+                <canvas id="batchChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Class Distribution Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">
+            <i class="fas fa-users text-indigo-600 dark:text-indigo-400 mr-2"></i>班级用户统计
+        </h3>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                    <tr>
+                        <th class="py-3 px-4">班级</th>
+                        <th class="py-3 px-4">人数</th>
+                        <th class="py-3 px-4">占比</th>
+                        <th class="py-3 px-4">分布</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cls in class_stats %}
+                    <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700">
+                        <td class="py-3 px-4">{{ cls.class_name }}</td>
+                        <td class="py-3 px-4 font-medium">{{ cls.count }}</td>
+                        <td class="py-3 px-4">{{ "%.1f"|format(cls.count / total_users * 100 if total_users > 0 else 0) }}%</td>
+                        <td class="py-3 px-4 w-1/3">
+                            <div class="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2.5">
+                                <div class="bg-indigo-600 h-2.5 rounded-full" style="width: {{ cls.count / total_users * 100 if total_users > 0 else 0 }}%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const chartColors = [
+    '#6366F1', '#EC4899', '#14B8A6', '#F59E0B', '#EF4444',
+    '#8B5CF6', '#06B6D4', '#84CC16', '#F97316', '#0EA5E9'
+];
+
+const chartColorsTranslucent = chartColors.map(c => c + '33');
+
+// 政治身份分布 - 柱状图
+new Chart(document.getElementById('identityChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ identity_stats|map(attribute='name')|list|tojson }},
+        datasets: [{
+            label: '人数',
+            data: {{ identity_stats|map(attribute='count')|list|tojson }},
+            backgroundColor: chartColors.slice(0, {{ identity_stats|length }}),
+            borderRadius: 6,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.parsed.y} 人`
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1,
+                    color: document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'
+                },
+                grid: {
+                    color: document.documentElement.classList.contains('dark') ? '#374151' : '#E5E7EB'
+                }
+            },
+            x: {
+                ticks: {
+                    color: document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'
+                },
+                grid: { display: false }
+            }
+        }
+    }
+});
+
+// 转接状态 - 环形图
+new Chart(document.getElementById('transferChart'), {
+    type: 'doughnut',
+    data: {
+        labels: {{ transfer_stats|map(attribute='transfer_status')|list|tojson }},
+        datasets: [{
+            data: {{ transfer_stats|map(attribute='count')|list|tojson }},
+            backgroundColor: ['#F59E0B', '#3B82F6', '#10B981', '#EF4444'],
+            borderWidth: 0,
+            hoverOffset: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 16,
+                    color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#374151'
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => {
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+                        return `${ctx.label}: ${ctx.parsed} 人 (${pct}%)`;
+                    }
+                }
+            }
+        }
+    }
+});
+
+// 材料齐全度 - 环形图
+new Chart(document.getElementById('completenessChart'), {
+    type: 'doughnut',
+    data: {
+        labels: {{ completeness_summary.keys()|list|tojson }},
+        datasets: [{
+            data: {{ completeness_summary.values()|list|tojson }},
+            backgroundColor: ['#10B981', '#EF4444', '#F59E0B', '#6B7280'],
+            borderWidth: 0,
+            hoverOffset: 8,
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '60%',
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 16,
+                    color: document.documentElement.classList.contains('dark') ? '#D1D5DB' : '#374151'
+                }
+            },
+            tooltip: {
+                callbacks: {
+                    label: ctx => {
+                        const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                        const pct = total > 0 ? Math.round(ctx.parsed / total * 100) : 0;
+                        return `${ctx.label}: ${ctx.parsed} 人 (${pct}%)`;
+                    }
+                }
+            }
+        }
+    }
+});
+
+// 批次分布 - 水平柱状图
+new Chart(document.getElementById('batchChart'), {
+    type: 'bar',
+    data: {
+        labels: {{ batch_stats|map(attribute='batch')|list|tojson }},
+        datasets: [{
+            label: '人数',
+            data: {{ batch_stats|map(attribute='count')|list|tojson }},
+            backgroundColor: chartColors.slice(0, {{ batch_stats|length }}),
+            borderRadius: 6,
+            borderSkipped: false,
+        }]
+    },
+    options: {
+        indexAxis: 'y',
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                callbacks: {
+                    label: ctx => `${ctx.parsed.x} 人`
+                }
+            }
+        },
+        scales: {
+            x: {
+                beginAtZero: true,
+                ticks: {
+                    stepSize: 1,
+                    color: document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'
+                },
+                grid: {
+                    color: document.documentElement.classList.contains('dark') ? '#374151' : '#E5E7EB'
+                }
+            },
+            y: {
+                ticks: {
+                    color: document.documentElement.classList.contains('dark') ? '#9CA3AF' : '#6B7280'
+                },
+                grid: { display: false }
+            }
+        }
+    }
+});
+</script>
+{% endblock %}

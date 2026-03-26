@@ -931,5 +931,120 @@ def operation_logs():
     logs = get_operation_logs(limit=100)
     return render_template('admin_operation_logs.html', logs=logs)
 
+@app.route('/admin/statistics')
+@admin_required
+def statistics():
+    try:
+        conn = get_db()
+        with conn:
+            # 身份分布
+            identity_stats = conn.execute('''
+                SELECT i.name, COUNT(DISTINCT ui.user_id) as count
+                FROM identities i
+                LEFT JOIN user_identities ui ON i.id = ui.identity_id
+                LEFT JOIN users u ON ui.user_id = u.id AND u.is_admin = 0
+                GROUP BY i.id, i.name
+                ORDER BY i.id
+            ''').fetchall()
+
+            # 转接状态分布
+            transfer_stats = conn.execute('''
+                SELECT ts.transfer_status, COUNT(*) as count
+                FROM transfer_status ts
+                JOIN users u ON ts.user_id = u.id
+                WHERE u.is_admin = 0
+                GROUP BY ts.transfer_status
+            ''').fetchall()
+
+            # 材料齐全度分布
+            completeness_stats = conn.execute('''
+                SELECT
+                    CASE
+                        WHEN COUNT(um.status) = 0 THEN '未录入'
+                        WHEN SUM(CASE WHEN um.status = '齐全' THEN 1 ELSE 0 END) = COUNT(um.status) THEN '齐全'
+                        WHEN SUM(CASE WHEN um.status = '齐全' THEN 1 ELSE 0 END) = 0 THEN '不齐全'
+                        ELSE '部分齐全'
+                    END AS completeness,
+                    COUNT(DISTINCT um.user_id) as count
+                FROM users u
+                LEFT JOIN user_materials um ON u.id = um.user_id
+                WHERE u.is_admin = 0
+                GROUP BY u.id
+            ''').fetchall()
+
+            # 汇总齐全度
+            completeness_summary = {}
+            for row in completeness_stats:
+                key = row['completeness']
+                completeness_summary[key] = completeness_summary.get(key, 0) + row['count']
+
+            # 批次分布
+            batch_stats = conn.execute('''
+                SELECT COALESCE(batch, '未分配') as batch, COUNT(*) as count
+                FROM users
+                WHERE is_admin = 0
+                GROUP BY batch
+                ORDER BY count DESC
+            ''').fetchall()
+
+            # 班级分布
+            class_stats = conn.execute('''
+                SELECT COALESCE(class_name, '未知') as class_name, COUNT(*) as count
+                FROM users
+                WHERE is_admin = 0
+                GROUP BY class_name
+                ORDER BY count DESC
+            ''').fetchall()
+
+            # 总体统计
+            total_users = conn.execute('SELECT COUNT(*) FROM users WHERE is_admin = 0').fetchone()[0]
+            total_completed = conn.execute('''
+                SELECT COUNT(*) FROM transfer_status ts
+                JOIN users u ON ts.user_id = u.id
+                WHERE u.is_admin = 0 AND ts.transfer_status = '已完成'
+            ''').fetchone()[0]
+            total_processing = conn.execute('''
+                SELECT COUNT(*) FROM transfer_status ts
+                JOIN users u ON ts.user_id = u.id
+                WHERE u.is_admin = 0 AND ts.transfer_status = '处理中'
+            ''').fetchone()[0]
+            total_abandoned = conn.execute('''
+                SELECT COUNT(*) FROM transfer_status ts
+                JOIN users u ON ts.user_id = u.id
+                WHERE u.is_admin = 0 AND ts.transfer_status = '已放弃'
+            ''').fetchone()[0]
+            avg_completeness = conn.execute('''
+                SELECT AVG(
+                    CASE WHEN total = 0 THEN 0
+                    ELSE complete * 100.0 / total END
+                ) FROM (
+                    SELECT u.id,
+                        SUM(CASE WHEN um.status = '齐全' THEN 1 ELSE 0 END) as complete,
+                        COUNT(um.status) as total
+                    FROM users u
+                    LEFT JOIN user_materials um ON u.id = um.user_id
+                    WHERE u.is_admin = 0
+                    GROUP BY u.id
+                )
+            ''').fetchone()[0] or 0
+
+        conn.close()
+        return render_template('admin_statistics.html',
+            identity_stats=[dict(r) for r in identity_stats],
+            transfer_stats=[dict(r) for r in transfer_stats],
+            completeness_summary=completeness_summary,
+            batch_stats=[dict(r) for r in batch_stats],
+            class_stats=[dict(r) for r in class_stats],
+            total_users=total_users,
+            total_completed=total_completed,
+            total_processing=total_processing,
+            total_abandoned=total_abandoned,
+            avg_completeness=round(avg_completeness, 1)
+        )
+    except Exception as e:
+        logger.error(f"Error loading statistics: {str(e)}")
+        flash(f'加载统计数据失败：{str(e)}', 'error')
+        return redirect(url_for('admin'))
+
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8888)
