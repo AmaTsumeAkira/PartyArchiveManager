@@ -32,7 +32,21 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', os.urandom(32).hex())  # Use env var or generate random key
+
+# SECRET_KEY: 优先使用环境变量，否则从文件读取/生成并持久化
+_secret_key_env = os.environ.get('SECRET_KEY')
+if _secret_key_env:
+    app.secret_key = _secret_key_env
+else:
+    _secret_key_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.secret_key')
+    if os.path.exists(_secret_key_file):
+        with open(_secret_key_file, 'r') as f:
+            app.secret_key = f.read().strip()
+    else:
+        app.secret_key = os.urandom(32).hex()
+        with open(_secret_key_file, 'w') as f:
+            f.write(app.secret_key)
+        os.chmod(_secret_key_file, 0o600)
 
 # 确保数据库表存在
 from database import ensure_operation_logs_table
@@ -639,7 +653,14 @@ def get_material_image(user_id, material_id, image_id):
             return jsonify({'success': False, 'error': '未找到图片'}), 404
         
         file_data = result['file_data']
-        mime_type = 'image/jpeg' if file_data.startswith(b'\xff\xd8') else 'image/png'
+        if file_data.startswith(b'\xff\xd8'):
+            mime_type = 'image/jpeg'
+        elif file_data.startswith(b'\x89PNG'):
+            mime_type = 'image/png'
+        elif file_data.startswith(b'%PDF'):
+            mime_type = 'application/pdf'
+        else:
+            mime_type = 'application/octet-stream'
         return Response(file_data, mimetype=mime_type)
     except Exception as e:
         logger.error(f"Error retrieving image for user_id={user_id}, material_id={material_id}, image_id={image_id}: {str(e)}")

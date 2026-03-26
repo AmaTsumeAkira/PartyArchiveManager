@@ -284,6 +284,13 @@ const pageSize = 10;
 let currentPage = 1;
 let filteredUsers = [...users];
 
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 // 渲染表格
 function renderTable(page = 1) {
     currentPage = page;
@@ -297,35 +304,71 @@ function renderTable(page = 1) {
     paginatedUsers.forEach(user => {
         const row = document.createElement('tr');
         row.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover: transition';
-        row.innerHTML = `
-            <td class="py-3 px-4">${user.student_id}</td>
-            <td class="py-3 px-4">${user.name}</td>
-            <td class="py-3 px-4">${user.class_name}</td>
-            <td class="py-3 px-4">${user.batch || '无'}</td>
-            <td class="py-3 px-4">${user.identity_names?.join(', ') || '无'}</td>
-            <td class="py-3 px-4">
-                ${cultivators
-                    .filter(c => user.cultivator_ids.includes(c.id))
-                    .map(c => c.name)
-                    .join(', ') || ''}
-            </td>
-            <td class="py-3 px-4">
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium 
-                    ${user.is_admin ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300'}">
-                    ${user.is_admin ? '是' : '否'}
-                </span>
-            </td>
-            <td class="py-3 px-4 space-x-2">
-                <button onclick='showEditUserModal(${JSON.stringify(user)})' 
-                        class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition">
-                    <i class="fas fa-edit mr-1"></i> 编辑
-                </button>
-                <button onclick="showDeleteConfirmModal('${user.id}', '${user.name}')" 
-                        class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition">
-                    <i class="fas fa-trash mr-1"></i> 删除
-                </button>
-            </td>
-        `;
+
+        // 学号
+        const td1 = document.createElement('td');
+        td1.className = 'py-3 px-4';
+        td1.textContent = user.student_id;
+        row.appendChild(td1);
+
+        // 姓名
+        const td2 = document.createElement('td');
+        td2.className = 'py-3 px-4';
+        td2.textContent = user.name;
+        row.appendChild(td2);
+
+        // 班级
+        const td3 = document.createElement('td');
+        td3.className = 'py-3 px-4';
+        td3.textContent = user.class_name;
+        row.appendChild(td3);
+
+        // 批次
+        const td4 = document.createElement('td');
+        td4.className = 'py-3 px-4';
+        td4.textContent = user.batch || '无';
+        row.appendChild(td4);
+
+        // 身份
+        const td5 = document.createElement('td');
+        td5.className = 'py-3 px-4';
+        td5.textContent = (user.identity_names || []).join(', ') || '无';
+        row.appendChild(td5);
+
+        // 培养人
+        const td6 = document.createElement('td');
+        td6.className = 'py-3 px-4';
+        td6.textContent = cultivators
+            .filter(c => user.cultivator_ids.includes(c.id))
+            .map(c => c.name)
+            .join(', ') || '';
+        row.appendChild(td6);
+
+        // 管理员
+        const td7 = document.createElement('td');
+        td7.className = 'py-3 px-4';
+        const badge = document.createElement('span');
+        badge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ' +
+            (user.is_admin ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300');
+        badge.textContent = user.is_admin ? '是' : '否';
+        td7.appendChild(badge);
+        row.appendChild(td7);
+
+        // 操作
+        const td8 = document.createElement('td');
+        td8.className = 'py-3 px-4 space-x-2';
+        const editBtn = document.createElement('button');
+        editBtn.className = 'text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition';
+        editBtn.innerHTML = '<i class="fas fa-edit mr-1"></i> 编辑';
+        editBtn.addEventListener('click', function() { showEditUserModal(user); });
+        td8.appendChild(editBtn);
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className = 'text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition';
+        deleteBtn.innerHTML = '<i class="fas fa-trash mr-1"></i> 删除';
+        deleteBtn.addEventListener('click', function() { showDeleteConfirmModal(user.id, user.name); });
+        td8.appendChild(deleteBtn);
+        row.appendChild(td8);
+
         tbody.appendChild(row);
     });
 

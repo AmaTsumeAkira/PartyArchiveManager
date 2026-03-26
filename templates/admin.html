@@ -105,7 +105,7 @@
             </div>
             <div class="prose max-w-none text-gray-700 dark:text-gray-300">
                 {% if announcement.content %}
-                    {{ announcement.content|safe }}
+                    {{ announcement.content }}
                 {% else %}
                     <p class="text-gray-500 dark:text-gray-400">暂无公告</p>
                 {% endif %}
@@ -152,7 +152,7 @@
         </div>
         <div class="prose max-w-none text-gray-700 dark:text-gray-300">
             {% if help_content.content %}
-                {{ help_content.content|safe }}
+                {{ help_content.content }}
             {% else %}
                 <p class="text-gray-500 dark:text-gray-400">暂无帮助内容</p>
             {% endif %}

@@ -1,4 +1,6 @@
 import sqlite3
+import os
+import warnings
 from werkzeug.security import generate_password_hash
 from datetime import datetime
 
@@ -172,8 +174,11 @@ def init_db():
     ''')
 
     # Insert only admin user
+    admin_password = os.environ.get('ADMIN_DEFAULT_PASSWORD', 'sxcz123456')
+    if admin_password == 'sxcz123456':
+        warnings.warn("正在使用默认管理员密码 'sxcz123456'，请通过环境变量 ADMIN_DEFAULT_PASSWORD 设置安全密码！", UserWarning)
     admin_user = [
-        ('admin', '管理员', generate_password_hash('sxcz123456'), '无', None, 1)
+        ('admin', '管理员', generate_password_hash(admin_password), '无', None, 1)
     ]
     c.executemany('INSERT INTO users (student_id, name, password, class_name, batch, is_admin) VALUES (?, ?, ?, ?, ?, ?)', admin_user)
 

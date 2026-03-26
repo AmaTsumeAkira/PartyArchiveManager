@@ -200,6 +200,13 @@
 {% endblock %}
 {% block scripts %}
 <script>
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
 // 分页参数
 const ITEMS_PER_PAGE = 5;
 let currentPage = 1;
@@ -283,17 +290,21 @@ function renderTable() {
         // 用户列（带红绿灯和tooltip）
         const tdUser = document.createElement('td');
         tdUser.className = 'py-3 px-4 sticky left-0 bg-white dark:bg-gray-800';
-        tdUser.innerHTML = `
-            <span class="tooltip">
-                <span class="completeness-dot completeness-${user.completeness}"></span>
-                ${user.name}
-                <span class="tooltip-text">
-                    ${user.materials.map(m => `
-                        <div>${m.name}: <span class="status-${m.status ? m.status.toLowerCase().replace(/[^a-z]/g, '') : 'empty'}">${m.status || '未录入'}</span></div>
-                    `).join('')}
-                </span>
-            </span>
-        `;
+        const tooltipSpan = document.createElement('span');
+        tooltipSpan.className = 'tooltip';
+        const dotSpan = document.createElement('span');
+        dotSpan.className = 'completeness-dot completeness-' + user.completeness;
+        tooltipSpan.appendChild(dotSpan);
+        tooltipSpan.appendChild(document.createTextNode(' ' + user.name));
+        const tooltipText = document.createElement('span');
+        tooltipText.className = 'tooltip-text';
+        user.materials.forEach(m => {
+            const div = document.createElement('div');
+            div.textContent = m.name + ': ' + (m.status || '未录入');
+            tooltipText.appendChild(div);
+        });
+        tooltipSpan.appendChild(tooltipText);
+        tdUser.appendChild(tooltipSpan);
         tr.appendChild(tdUser);
 
         // 学号
@@ -323,11 +334,12 @@ function renderTable() {
         // 操作列
         const tdAction = document.createElement('td');
         tdAction.className = 'py-3 px-4';
-        tdAction.innerHTML = `
-            <button class="manage-images-btn px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm" data-user-id="${user.id}" data-user-name="${user.name}">
-                管理图片
-            </button>
-        `;
+        const manageBtn = document.createElement('button');
+        manageBtn.className = 'manage-images-btn px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm';
+        manageBtn.setAttribute('data-user-id', user.id);
+        manageBtn.setAttribute('data-user-name', user.name);
+        manageBtn.textContent = '管理图片';
+        tdAction.appendChild(manageBtn);
         tr.appendChild(tdAction);
 
         // 材料列
@@ -335,18 +347,37 @@ function renderTable() {
             const td = document.createElement('td');
             td.className = 'py-3 px-4';
             const userMaterial = user.materials.find(m => m.id === material.id) || { status: '', details: '', image_count: 0 };
-            td.innerHTML = `
-                <div class="flex flex-col gap-2">
-                    <select class="status-select w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100" data-user-id="${user.id}" data-material-id="${material.id}">
-                        <option value="" ${!userMaterial.status ? 'selected' : ''}>未录入</option>
-                        <option value="齐全" ${userMaterial.status === '齐全' ? 'selected' : ''}>齐全</option>
-                        <option value="不齐全" ${userMaterial.status === '不齐全' ? 'selected' : ''}>不齐全</option>
-                        <option value="待审核" ${userMaterial.status === '待审核' ? 'selected' : ''}>待审核</option>
-                    </select>
-                    <input type="text" class="details-input w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100" placeholder="备注" value="${userMaterial.details || ''}" data-user-id="${user.id}" data-material-id="${material.id}">
-                    <span class="text-gray-500 dark:text-gray-400 text-xs">图片: ${userMaterial.image_count}</span>
-                </div>
-            `;
+            const div = document.createElement('div');
+            div.className = 'flex flex-col gap-2';
+
+            const select = document.createElement('select');
+            select.className = 'status-select w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100';
+            select.setAttribute('data-user-id', user.id);
+            select.setAttribute('data-material-id', material.id);
+            [{v:'',t:'未录入'},{v:'齐全',t:'齐全'},{v:'不齐全',t:'不齐全'},{v:'待审核',t:'待审核'}].forEach(opt => {
+                const option = document.createElement('option');
+                option.value = opt.v;
+                option.textContent = opt.t;
+                if (userMaterial.status === opt.v) option.selected = true;
+                select.appendChild(option);
+            });
+            div.appendChild(select);
+
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'details-input w-full px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-gray-100';
+            input.placeholder = '备注';
+            input.value = userMaterial.details || '';
+            input.setAttribute('data-user-id', user.id);
+            input.setAttribute('data-material-id', material.id);
+            div.appendChild(input);
+
+            const span = document.createElement('span');
+            span.className = 'text-gray-500 dark:text-gray-400 text-xs';
+            span.textContent = '图片: ' + userMaterial.image_count;
+            div.appendChild(span);
+
+            td.appendChild(div);
             tr.appendChild(td);
         });
 
@@ -570,16 +601,34 @@ async function openImageModal(userId, userName) {
         user.materials.forEach(material => {
             const section = document.createElement('div');
             section.className = 'modal-content-section';
-            section.innerHTML = `
-                <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">${material.name}</h3>
-                <div class="mb-4">
-                    <input type="file" class="file-upload-input" accept="image/png,image/jpeg" data-user-id="${userId}" data-material-id="${material.id}">
-                    <button class="upload-btn mt-2 px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm" data-user-id="${userId}" data-material-id="${material.id}">上传图片</button>
-                </div>
-                <div class="image-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4" data-material-id="${material.id}">
-                    <p class="text-gray-500 dark:text-gray-400">暂无图片</p>
-                </div>
-            `;
+            const h3 = document.createElement('h3');
+            h3.className = 'text-lg font-medium text-gray-900 dark:text-gray-100 mb-2';
+            h3.textContent = material.name;
+            section.appendChild(h3);
+            const mbDiv = document.createElement('div');
+            mbDiv.className = 'mb-4';
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.className = 'file-upload-input';
+            fileInput.accept = 'image/png,image/jpeg,application/pdf';
+            fileInput.setAttribute('data-user-id', userId);
+            fileInput.setAttribute('data-material-id', material.id);
+            mbDiv.appendChild(fileInput);
+            const uploadBtn = document.createElement('button');
+            uploadBtn.className = 'upload-btn mt-2 px-3 py-1 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 text-sm';
+            uploadBtn.setAttribute('data-user-id', userId);
+            uploadBtn.setAttribute('data-material-id', material.id);
+            uploadBtn.textContent = '上传图片';
+            mbDiv.appendChild(uploadBtn);
+            section.appendChild(mbDiv);
+            const grid = document.createElement('div');
+            grid.className = 'image-grid grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4';
+            grid.setAttribute('data-material-id', material.id);
+            const noImgP = document.createElement('p');
+            noImgP.className = 'text-gray-500 dark:text-gray-400';
+            noImgP.textContent = '暂无图片';
+            grid.appendChild(noImgP);
+            section.appendChild(grid);
             modalContent.appendChild(section);
 
             // 加载图片
@@ -624,7 +673,7 @@ async function openImageModal(userId, userName) {
         modal.classList.remove('hidden');
     } catch (error) {
         showNotification(`加载图片失败：${error.message}`, 'error');
-        modalContent.innerHTML = `<p class="text-red-500 dark:text-red-400">加载失败：${error.message}</p>`;
+        modalContent.innerHTML = '<p class="text-red-500 dark:text-red-400">加载失败</p>';
     }
 }
 
@@ -647,10 +696,16 @@ async function loadImagesForMaterial(userId, materialId) {
         data.images.forEach(image => {
             const div = document.createElement('div');
             div.className = 'flex items-center gap-2';
-            div.innerHTML = `
-                <img src="/admin/api/material_image/${userId}/${materialId}/${image.id}" class="image-preview" alt="Material Image">
-                <button class="delete-btn" data-image-id="${image.id}">删除</button>
-            `;
+            const img = document.createElement('img');
+            img.src = '/admin/api/material_image/' + userId + '/' + materialId + '/' + image.id;
+            img.className = 'image-preview';
+            img.alt = 'Material Image';
+            div.appendChild(img);
+            const delBtn = document.createElement('button');
+            delBtn.className = 'delete-btn';
+            delBtn.setAttribute('data-image-id', image.id);
+            delBtn.textContent = '删除';
+            div.appendChild(delBtn);
             grid.appendChild(div);
 
             // 点击图片查看大图
@@ -695,9 +750,10 @@ function showNotification(message, type) {
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${type === 'error' ? 'M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z' : 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z'}"></path>
         </svg>
-        <span class="flex-1">${message}</span>
-        <button onclick="this.parentElement.classList.add('hidden')" class="text-lg leading-none hover:opacity-70">×</button>
+        <span class="flex-1"></span>
+        <button onclick="this.parentElement.classList.add('hidden')" class="text-lg leading-none hover:opacity-70">&times;</button>
     `;
+    notification.querySelector('.flex-1').textContent = message;
     notification.classList.remove('hidden');
     setTimeout(() => notification.classList.add('hidden'), 5000);
 }
