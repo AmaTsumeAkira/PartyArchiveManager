@@ -6,7 +6,7 @@
         <div class="flex justify-between items-center">
             <div>
                 <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">操作日志</h1>
-                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理员的关键操作记录，最近 100 条</p>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理员的关键操作记录，共 <span id="totalCount">{{ total }}</span> 条</p>
             </div>
             <a href="{{ url_for('admin') }}" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 transition">
                 <i class="fas fa-arrow-left mr-1"></i> 返回仪表盘
@@ -14,8 +14,44 @@
         </div>
     </header>
 
+    <!-- Search and Filter Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 animate-fadeIn">
+        <div class="flex flex-col md:flex-row md:items-end md:space-x-4 space-y-4 md:space-y-0">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">搜索</label>
+                <input type="text" id="searchInput" placeholder="操作人、目标或详情" 
+                    class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">操作类型</label>
+                <select id="actionFilter" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">全部</option>
+                    {% for a in actions %}
+                    <option value="{{ a }}">{{ a }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">开始日期</label>
+                <input type="date" id="dateFrom" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">结束日期</label>
+                <input type="date" id="dateTo" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="searchLogs(1)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md shadow-sm transition duration-200 flex items-center">
+                    <i class="fas fa-search mr-1"></i> 查询
+                </button>
+                <button onclick="resetFilters()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-md shadow-sm hover:bg-gray-50 dark:hover:bg-gray-700 transition duration-200">
+                    <i class="fas fa-redo mr-1"></i> 重置
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logs Table -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden animate-fadeIn">
-        {% if logs %}
         <div class="overflow-x-auto">
             <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                 <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
@@ -27,7 +63,7 @@
                         <th class="py-3 px-4">详情</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="logsTableBody">
                     {% for log in logs %}
                     <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
                         <td class="py-3 px-4 whitespace-nowrap">{{ log.created_at }}</td>
@@ -49,12 +85,164 @@
                 </tbody>
             </table>
         </div>
-        {% else %}
-        <div class="p-8 text-center">
+
+        <!-- Empty state -->
+        <div id="emptyState" class="{% if logs %}hidden{% endif %} p-8 text-center">
             <i class="fas fa-clipboard-list text-4xl text-gray-300 dark:text-gray-600 mb-3"></i>
             <p class="text-gray-500 dark:text-gray-400">暂无操作日志记录</p>
         </div>
-        {% endif %}
+
+        <!-- Pagination -->
+        <div id="paginationSection" class="{% if not logs %}hidden{% endif %} px-6 py-4 flex justify-between items-center border-t dark:border-gray-700">
+            <div class="text-sm text-gray-700 dark:text-gray-300">
+                第 <span id="currentPageNum">{{ page }}</span> / <span id="totalPagesNum">{{ total_pages }}</span> 页
+            </div>
+            <div class="flex space-x-2">
+                <button id="prevBtn" onclick="searchLogs(currentPage - 1)" 
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                    {% if page <= 1 %}disabled{% endif %}>
+                    上一页
+                </button>
+                <div id="pageNumbers" class="flex space-x-1"></div>
+                <button id="nextBtn" onclick="searchLogs(currentPage + 1)" 
+                    class="px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 disabled:opacity-50"
+                    {% if page >= total_pages %}disabled{% endif %}>
+                    下一页
+                </button>
+            </div>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentPage = {{ page }};
+let currentTotalPages = {{ total_pages }};
+
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = String(str);
+    return div.innerHTML;
+}
+
+function highlightText(text, searchTerm) {
+    if (!searchTerm || !text) return escapeHtml(String(text || ''));
+    const escaped = escapeHtml(String(text));
+    const term = escapeHtml(searchTerm);
+    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escaped.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-600 text-inherit rounded px-0.5">$1</mark>');
+}
+
+function getActionBadgeClass(action) {
+    if (action.includes('删除')) return 'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100';
+    if (action.includes('添加')) return 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100';
+    if (action.includes('修改') || action.includes('更新')) return 'bg-blue-100 text-blue-800 dark:bg-blue-800 dark:text-blue-100';
+    if (action.includes('初始化')) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100';
+    return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+}
+
+function renderLogs(logs, searchTerm) {
+    const tbody = document.getElementById('logsTableBody');
+    tbody.innerHTML = '';
+    const emptyState = document.getElementById('emptyState');
+    const paginationSection = document.getElementById('paginationSection');
+
+    if (logs.length === 0) {
+        emptyState.classList.remove('hidden');
+        paginationSection.classList.add('hidden');
+        return;
+    }
+
+    emptyState.classList.add('hidden');
+    paginationSection.classList.remove('hidden');
+
+    logs.forEach(log => {
+        const tr = document.createElement('tr');
+        tr.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition';
+        tr.innerHTML = `
+            <td class="py-3 px-4 whitespace-nowrap">${escapeHtml(log.created_at)}</td>
+            <td class="py-3 px-4">${highlightText(log.operator_name, searchTerm)}</td>
+            <td class="py-3 px-4">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getActionBadgeClass(log.action)}">
+                    ${escapeHtml(log.action)}
+                </span>
+            </td>
+            <td class="py-3 px-4">${highlightText(log.target || '-', searchTerm)}</td>
+            <td class="py-3 px-4 text-gray-500 dark:text-gray-400">${highlightText(log.details || '-', searchTerm)}</td>
+        `;
+        tbody.appendChild(tr);
+    });
+}
+
+function renderPagination(page, totalPages) {
+    currentPage = page;
+    currentTotalPages = totalPages;
+    document.getElementById('currentPageNum').textContent = page;
+    document.getElementById('totalPagesNum').textContent = totalPages;
+    document.getElementById('prevBtn').disabled = page <= 1;
+    document.getElementById('nextBtn').disabled = page >= totalPages;
+
+    const pageNumbers = document.getElementById('pageNumbers');
+    pageNumbers.innerHTML = '';
+
+    const maxVisible = 5;
+    let start = Math.max(1, page - Math.floor(maxVisible / 2));
+    let end = Math.min(totalPages, start + maxVisible - 1);
+    if (end - start < maxVisible - 1) start = Math.max(1, end - maxVisible + 1);
+
+    for (let i = start; i <= end; i++) {
+        const btn = document.createElement('button');
+        btn.className = `px-3 py-1 border border-gray-300 dark:border-gray-600 rounded-md text-sm ${i === page ? 'bg-indigo-600 text-white' : 'text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600'}`;
+        btn.textContent = i;
+        btn.onclick = () => searchLogs(i);
+        pageNumbers.appendChild(btn);
+    }
+}
+
+function searchLogs(page) {
+    page = page || 1;
+    const search = document.getElementById('searchInput').value.trim();
+    const action = document.getElementById('actionFilter').value;
+    const dateFrom = document.getElementById('dateFrom').value;
+    const dateTo = document.getElementById('dateTo').value;
+
+    const params = new URLSearchParams();
+    if (search) params.set('search', search);
+    if (action) params.set('action', action);
+    if (dateFrom) params.set('date_from', dateFrom);
+    if (dateTo) params.set('date_to', dateTo);
+    params.set('page', page);
+
+    fetch('{{ url_for("api_operation_logs") }}?' + params.toString())
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('totalCount').textContent = data.total;
+                renderLogs(data.logs, search);
+                renderPagination(data.page, data.total_pages);
+            }
+        })
+        .catch(err => console.error('搜索失败:', err));
+}
+
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('actionFilter').value = '';
+    document.getElementById('dateFrom').value = '';
+    document.getElementById('dateTo').value = '';
+    searchLogs(1);
+}
+
+// Enter 键触发搜索
+document.getElementById('searchInput').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') searchLogs(1);
+});
+
+// 初始化分页
+document.addEventListener('DOMContentLoaded', () => {
+    renderPagination(currentPage, currentTotalPages);
+});
+</script>
 {% endblock %}

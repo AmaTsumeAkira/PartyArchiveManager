@@ -11,7 +11,8 @@ from database import (
     get_user_signature, get_user_cultivators, get_all_cultivators, add_cultivator,
     update_cultivator, delete_cultivator, get_user_cultivator_ids, update_user_cultivators,
     clean_unused_materials, delete_material, get_all_identities, update_user_identities,
-    reset_user_data, get_user_identity_ids, log_operation, get_operation_logs
+    reset_user_data, get_user_identity_ids, log_operation, get_operation_logs,
+    search_operation_logs
 )
 import json
 import logging
@@ -134,18 +135,16 @@ def transfer():
     
     initialize_user_materials(user_id)
     
+    # 直接通过 user_id 查询用户信息，避免冗余数据库连接
     conn = get_db()
     try:
-        student_id = conn.execute('SELECT student_id FROM users WHERE id = ?', (user_id,)).fetchone()
+        user = conn.execute('SELECT * FROM users WHERE id = ?', (user_id,)).fetchone()
     finally:
         conn.close()
-    if not student_id:
+    if not user:
         logger.error(f"No user found for user_id={user_id}")
         flash('用户不存在', 'error')
         return redirect(url_for('logout'))
-    student_id = student_id['student_id']
-    
-    user = get_user_by_student_id(student_id)
     identities = get_user_identities(user_id)
     materials = get_user_materials(user_id)
     logger.debug(f"Materials for user_id={user_id}: {[(m['id'], m['name'], m['status'], m['details']) for m in materials]}")
@@ -342,11 +341,9 @@ def admin_update_transfer_status():
         update_transfer_status(user_id, transfer_status, receive_status, 
                              receiver=receiver, progress=progress, transfer_date=transfer_date)
         log_operation(session['user_id'], session.get('student_id', '管理员'), '更新转接状态', f'用户ID:{user_id}', f'{transfer_status}/{receive_status}')
-        flash('转接状态更新成功', 'success')
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Error updating transfer status for user_id={user_id}: {str(e)}")
-        flash(f'更新失败：{str(e)}', 'error')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/transfer_status')
@@ -355,7 +352,7 @@ def admin_transfer_status():
     try:
         conn = get_db()
         users = conn.execute('''
-            SELECT u.id, u.student_id, u.name, u.class_name,
+            SELECT u.id, u.student_id, u.name, u.class_name, u.batch,
                    GROUP_CONCAT(i.name) as identity_names,
                    ts.transfer_status, ts.receive_status, ts.receiver, ts.progress, ts.transfer_date
             FROM users u
@@ -432,17 +429,13 @@ def delete_material_route():
         identity_id = int(request.form['identity_id'])
         result = delete_material(material_id, identity_id)
         if result['success']:
-            flash('材料删除成功', 'success')
             return jsonify({'success': True})
         else:
-            flash(result['error'], 'error')
             return jsonify({'success': False, 'error': result['error']}), 400
     except ValueError:
-        flash('无效的材料ID或身份ID', 'error')
         logger.error(f"Invalid material_id: {request.form['material_id']}, identity_id: {request.form['identity_id']}")
         return jsonify({'success': False, 'error': '无效的材料ID或身份ID'}), 400
     except Exception as e:
-        flash(f'删除材料失败: {str(e)}', 'error')
         logger.error(f"Error deleting material: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -879,11 +872,9 @@ def update_materials():
         material_id = request.form['material_id']
         status = request.form['status']
         update_material_status(user_id, material_id, status)
-        flash('材料状态更新成功', 'success')
         return jsonify({'success': True})
     except Exception as e:
         logger.error(f"Error updating materials: {str(e)}")
-        flash('更新材料状态失败', 'error')
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/update_announcement', methods=['POST'])
@@ -928,8 +919,34 @@ def update_help():
 @app.route('/admin/operation_logs')
 @admin_required
 def operation_logs():
-    logs = get_operation_logs(limit=100)
-    return render_template('admin_operation_logs.html', logs=logs)
+    result = search_operation_logs(page=1, per_page=20)
+    return render_template('admin_operation_logs.html', 
+                         logs=result['logs'],
+                         total=result['total'],
+                         page=result['page'],
+                         total_pages=result['total_pages'],
+                         actions=result['actions'])
+
+@app.route('/admin/api/operation_logs')
+@admin_required
+def api_operation_logs():
+    try:
+        search = request.args.get('search', '').strip() or None
+        action = request.args.get('action', '').strip() or None
+        date_from = request.args.get('date_from', '').strip() or None
+        date_to = request.args.get('date_to', '').strip() or None
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+
+        result = search_operation_logs(
+            search=search, action=action,
+            date_from=date_from, date_to=date_to,
+            page=page, per_page=per_page
+        )
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Error searching operation logs: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/statistics')
 @admin_required

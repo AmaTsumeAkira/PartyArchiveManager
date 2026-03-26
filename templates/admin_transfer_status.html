@@ -107,6 +107,15 @@ const pageSize = 10;
 let currentPage = 1;
 let filteredUsers = [...users];
 
+// 高亮搜索匹配文本
+function highlightText(text, searchTerm) {
+    if (!searchTerm || !text) return escapeHtml(String(text || ''));
+    const escaped = escapeHtml(String(text));
+    const term = escapeHtml(searchTerm);
+    const regex = new RegExp(`(${term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    return escaped.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-600 text-inherit rounded px-0.5">$1</mark>');
+}
+
 function escapeHtml(str) {
     if (str == null) return '';
     const div = document.createElement('div');
@@ -120,6 +129,7 @@ function renderTable(page = 1) {
     const start = (page - 1) * pageSize;
     const end = start + pageSize;
     const paginatedUsers = filteredUsers.slice(start, end);
+    const searchTerm = document.getElementById('searchInput').value.trim();
 
     const tbody = document.getElementById('userTableBody');
     tbody.innerHTML = '';
@@ -133,25 +143,25 @@ function renderTable(page = 1) {
         // 学号
         const td1 = document.createElement('td');
         td1.className = 'py-3 px-4 truncate';
-        td1.textContent = user.student_id;
+        td1.innerHTML = highlightText(user.student_id, searchTerm);
         row.appendChild(td1);
 
         // 姓名
         const td2 = document.createElement('td');
         td2.className = 'py-3 px-4 truncate';
-        td2.textContent = user.name;
+        td2.innerHTML = highlightText(user.name, searchTerm);
         row.appendChild(td2);
 
         // 班级
         const td3 = document.createElement('td');
         td3.className = 'py-3 px-4 truncate';
-        td3.textContent = user.class_name;
+        td3.innerHTML = highlightText(user.class_name, searchTerm);
         row.appendChild(td3);
 
         // 政治身份
         const td4 = document.createElement('td');
         td4.className = 'py-3 px-4 truncate';
-        td4.textContent = user.identity_names.join('、');
+        td4.innerHTML = highlightText(user.identity_names.join('、'), searchTerm);
         row.appendChild(td4);
 
         // 转接状态

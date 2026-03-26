@@ -739,6 +739,62 @@ def get_operation_logs(limit=50):
     finally:
         conn.close()
 
+def search_operation_logs(search=None, action=None, date_from=None, date_to=None, page=1, per_page=20):
+    """搜索和筛选操作日志，支持分页"""
+    try:
+        conn = get_db()
+        with conn:
+            where_clauses = []
+            params = []
+
+            if search:
+                where_clauses.append("(operator_name LIKE ? OR target LIKE ? OR details LIKE ?)")
+                s = f"%{search}%"
+                params.extend([s, s, s])
+
+            if action:
+                where_clauses.append("action = ?")
+                params.append(action)
+
+            if date_from:
+                where_clauses.append("created_at >= ?")
+                params.append(date_from)
+
+            if date_to:
+                where_clauses.append("created_at <= ?")
+                params.append(date_to + ' 23:59:59')
+
+            where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+            # 获取总数
+            count_sql = f"SELECT COUNT(*) FROM operation_logs {where_sql}"
+            total = conn.execute(count_sql, params).fetchone()[0]
+
+            # 获取分页数据
+            offset = (page - 1) * per_page
+            data_sql = f'''
+                SELECT id, operator_name, action, target, details, created_at
+                FROM operation_logs
+                {where_sql}
+                ORDER BY created_at DESC
+                LIMIT ? OFFSET ?
+            '''
+            logs = conn.execute(data_sql, params + [per_page, offset]).fetchall()
+
+            # 获取所有操作类型
+            actions = conn.execute('SELECT DISTINCT action FROM operation_logs ORDER BY action').fetchall()
+
+        return {
+            'logs': [dict(log) for log in logs],
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page if total > 0 else 1,
+            'actions': [a['action'] for a in actions]
+        }
+    finally:
+        conn.close()
+
 def ensure_operation_logs_table():
     """确保操作日志表存在"""
     try:
