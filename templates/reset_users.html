@@ -37,7 +37,7 @@
                         </thead>
                         <tbody>
                             {% for user in users if not user.is_admin %}
-                            <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition">
+                            <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition">
                                 <td class="py-3 px-4">
                                     <input type="checkbox" name="user_ids" value="{{ user.id }}" class="user-checkbox h-4 w-4 text-indigo-600 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600">
                                 </td>

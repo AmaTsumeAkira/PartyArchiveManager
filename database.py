@@ -337,7 +337,7 @@ def update_material_requirements(identity_id, materials):
             for material_name in required_materials:
                 material_id = conn.execute('SELECT id FROM materials WHERE LOWER(name) = ?', (material_name,)).fetchone()
                 if not material_id:
-                    conn.execute('INSERT INTO materials (name) VALUES (?)', (material_name.capitalize(),))
+                    conn.execute('INSERT INTO materials (name) VALUES (?)', (material_name,))
                     material_id = conn.execute('SELECT id FROM materials WHERE LOWER(name) = ?', (material_name,)).fetchone()
                 exists = conn.execute('SELECT 1 FROM identity_materials WHERE identity_id = ? AND material_id = ?',
                                      (identity_id, material_id['id'])).fetchone()

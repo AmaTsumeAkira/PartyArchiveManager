@@ -154,7 +154,7 @@
                 </div>
             </div>
             <div class="flex justify-end space-x-2 mt-4">
-                <button type="button" onclick="closeAddUserModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:">
+                <button type="button" onclick="closeAddUserModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     取消
                 </button>
                 <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
@@ -236,7 +236,7 @@
                 </div>
             </div>
             <div class="flex justify-end space-x-2 mt-4">
-                <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:">
+                <button type="button" onclick="closeEditUserModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     取消
                 </button>
                 <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
@@ -263,7 +263,7 @@
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="user_id" id="delete_user_id">
             <div class="flex justify-end space-x-2">
-                <button type="button" onclick="closeDeleteConfirmModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:">
+                <button type="button" onclick="closeDeleteConfirmModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">
                     取消
                 </button>
                 <button type="submit" class="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500">
@@ -303,7 +303,7 @@ function renderTable(page = 1) {
 
     paginatedUsers.forEach(user => {
         const row = document.createElement('tr');
-        row.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover: transition';
+        row.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 transition';
 
         // 学号
         const td1 = document.createElement('td');

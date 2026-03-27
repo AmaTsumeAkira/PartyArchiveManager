@@ -13,6 +13,9 @@
             class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center">
             <i class="fas fa-user-plus mr-2"></i> 数据统计与导出
         </a>
+            <button onclick="exportChecklist()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center">
+                <i class="fas fa-file-excel mr-2"></i> 导出清单
+            </button>
         </div>
     </header>
     <!-- Filter Controls -->
@@ -186,11 +189,15 @@
         border-radius: 4px;
         cursor: pointer;
         color: #4B5563;
-        dark:color: #D1D5DB;
+    }
+    .dark .page-number {
+        color: #D1D5DB;
     }
     .page-number:hover {
         background-color: #E5E7EB;
-        dark:background-color: #4B5563;
+    }
+    .dark .page-number:hover {
+        background-color: #4B5563;
     }
     .page-number.active {
         background-color: #4F46E5;
@@ -765,5 +772,18 @@ document.addEventListener('DOMContentLoaded', () => {
     filterForm.addEventListener('input', debounce(() => loadData(), 300));
     filterForm.addEventListener('change', () => loadData());
 });
+
+// 导出材料清单
+function exportChecklist() {
+    const form = document.getElementById('filterForm');
+    const formData = new FormData(form);
+    const params = new URLSearchParams({
+        search: formData.get('search') || '',
+        batch: formData.get('batch') || '',
+        identity_id: formData.get('identity_id') || '',
+        completeness: formData.get('completeness') || 'all'
+    });
+    window.location.href = `/admin/api/export_material_checklist?${params}`;
+}
 </script>
 {% endblock %}

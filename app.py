@@ -410,20 +410,16 @@ def batch_update_transfer():
         
         progress = max(0, min(100, int(progress))) if progress is not None else None
         
-        conn = get_db()
-        try:
-            for user_id in user_ids:
-                user_id = int(user_id)
-                if progress is not None:
-                    update_transfer_status(user_id, transfer_status, receive_status or '待确认',
-                                         receiver=receiver, progress=progress)
-                else:
-                    # 保持原有进度
-                    ts = get_transfer_status(user_id)
-                    update_transfer_status(user_id, transfer_status, receive_status or ts['receive_status'],
-                                         receiver=receiver or ts['receiver'], progress=ts['progress'])
-        finally:
-            conn.close()
+        for uid in user_ids:
+            uid = int(uid)
+            if progress is not None:
+                update_transfer_status(uid, transfer_status, receive_status or '待确认',
+                                     receiver=receiver, progress=progress)
+            else:
+                # 保持原有进度
+                ts = get_transfer_status(uid)
+                update_transfer_status(uid, transfer_status, receive_status or ts['receive_status'],
+                                     receiver=receiver or ts['receiver'], progress=ts['progress'])
         
         log_operation(session['user_id'], session.get('student_id', '管理员'), '批量更新转接状态',
                      f'{len(user_ids)}个用户', f'状态:{transfer_status}')
@@ -889,6 +885,155 @@ def delete_material_image():
 def archive_overview():
     identities = get_all_identities()
     return render_template('admin_archive_overview.html', identities=identities)
+
+@app.route('/admin/api/export_material_checklist')
+@admin_required
+def export_material_checklist():
+    """批量导出材料清单为Excel"""
+    try:
+        search = request.args.get('search', '').strip()
+        batch = request.args.get('batch', '').strip()
+        identity_id = request.args.get('identity_id', '')
+        completeness = request.args.get('completeness', 'all')
+
+        conn = get_db()
+        try:
+            where_clauses = ["u.is_admin = 0"]
+            params = []
+
+            if search:
+                where_clauses.append("(u.student_id LIKE ? OR u.name LIKE ? OR u.class_name LIKE ?)")
+                search_term = f"%{search}%"
+                params.extend([search_term, search_term, search_term])
+
+            if batch:
+                where_clauses.append("u.batch LIKE ?")
+                params.append(f"%{batch}%")
+
+            if identity_id:
+                where_clauses.append("ui.identity_id = ?")
+                params.append(int(identity_id))
+
+            where_clause = " AND ".join(where_clauses)
+
+            # 获取所有材料名称
+            materials = conn.execute('SELECT id, name FROM materials ORDER BY id').fetchall()
+            material_names = [(m['id'], m['name']) for m in materials]
+
+            query = f'''
+                WITH UserMaterials AS (
+                    SELECT um.user_id, m.id AS material_id,
+                           COALESCE(um.status, '') AS status
+                    FROM materials m
+                    LEFT JOIN user_materials um ON m.id = um.material_id
+                    GROUP BY m.id, um.user_id
+                ),
+                UserCompleteness AS (
+                    SELECT um.user_id,
+                           CASE
+                               WHEN COUNT(um.status) = 0 THEN 'incomplete'
+                               WHEN SUM(CASE WHEN um.status = '齐全' THEN 1 ELSE 0 END) = COUNT(um.status) THEN 'complete'
+                               WHEN SUM(CASE WHEN um.status = '待审核' THEN 1 ELSE 0 END) = COUNT(um.status) THEN 'pending'
+                               ELSE 'partial'
+                           END AS completeness
+                    FROM UserMaterials um
+                    GROUP BY um.user_id
+                )
+                SELECT u.id, u.student_id, u.name, u.batch, u.class_name,
+                       GROUP_CONCAT(i.name) AS identity_names,
+                       uc.completeness,
+                       ts.transfer_status,
+                       (SELECT json_group_array(
+                           json_object('material_id', um.material_id, 'status', um.status)
+                       ) FROM UserMaterials um WHERE um.user_id = u.id) AS materials
+                FROM users u
+                LEFT JOIN user_identities ui ON u.id = ui.user_id
+                LEFT JOIN identities i ON ui.identity_id = i.id
+                LEFT JOIN UserCompleteness uc ON u.id = uc.user_id
+                LEFT JOIN transfer_status ts ON u.id = ts.user_id
+                WHERE {where_clause}
+                {'AND uc.completeness = ?' if completeness != 'all' else ''}
+                GROUP BY u.id
+                ORDER BY u.name, u.student_id
+            '''
+            if completeness != 'all':
+                params.append(completeness)
+
+            users = conn.execute(query, params).fetchall()
+        finally:
+            conn.close()
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "材料清单"
+
+        # 表头
+        headers = ['学号', '姓名', '班级', '批次', '政治身份', '材料齐全度', '转接状态']
+        for mid, mname in material_names:
+            headers.append(mname)
+        ws.append(headers)
+
+        # 表头样式
+        header_font = Font(bold=True)
+        header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        completeness_map = {
+            'complete': '齐全', 'incomplete': '不齐全',
+            'partial': '部分齐全', 'pending': '待审核'
+        }
+        material_id_to_col = {mid: idx + 8 for idx, (mid, _) in enumerate(material_names)}
+
+        for user in users:
+            materials_data = json.loads(user['materials']) if user['materials'] else []
+            mat_status_map = {m['material_id']: m['status'] for m in materials_data}
+
+            row = [
+                user['student_id'],
+                user['name'],
+                user['class_name'] or '未知',
+                user['batch'] or '未分配',
+                user['identity_names'] or '无',
+                completeness_map.get(user['completeness'], user['completeness']),
+                user['transfer_status'] or '未开始'
+            ]
+            # 为每个材料列填充状态
+            for mid, _ in material_names:
+                row.append(mat_status_map.get(mid, ''))
+
+            ws.append(row)
+
+        # 列宽自适应
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            ws.column_dimensions[column].width = min((max_length + 2) * 1.2, 30)
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'material_checklist_{timestamp}.xlsx'
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        logger.error(f"Error exporting material checklist: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/api/export_archive', methods=['GET'])
 @admin_required
