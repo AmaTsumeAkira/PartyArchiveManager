@@ -81,8 +81,8 @@
                         <span class="text-gray-500 dark:text-gray-400 text-xs ml-1" title="{{ material.details }}">{{ material.details|truncate(20) }}</span>
                         {% endif %}
                     </div>
-                    <span class="{% if material.status == '齐全' %}text-green-600{% elif material.status == '待审核' %}text-yellow-600{% elif material.status == '不足' %}text-red-600{% else %}text-gray-600{% endif %} flex items-center text-xs">
-                        <i class="fas {% if material.status == '齐全' %}fa-check-circle{% elif material.status == '待审核' %}fa-exclamation-circle{% elif material.status == '不足' %}fa-times-circle{% else %}fa-question-circle{% endif %} mr-1"></i> {{ material.status or '未录入' }}
+                    <span class="{% if material.status == '齐全' %}text-green-600{% elif material.status == '待审核' %}text-yellow-600{% elif material.status == '不齐全' or material.status == '不足' %}text-red-600{% else %}text-gray-600{% endif %} flex items-center text-xs">
+                        <i class="fas {% if material.status == '齐全' %}fa-check-circle{% elif material.status == '待审核' %}fa-exclamation-circle{% elif material.status == '不齐全' or material.status == '不足' %}fa-times-circle{% else %}fa-question-circle{% endif %} mr-1"></i> {{ material.status or '未录入' }}
                     </span>
                 </div>
                 {% endfor %}

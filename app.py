@@ -21,6 +21,9 @@ import logging
 import io
 import os
 import time
+import hmac
+import hashlib
+from functools import wraps
 from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
@@ -41,6 +44,7 @@ app = Flask(__name__)
 # Session security settings
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 
 # SECRET_KEY: 优先使用环境变量，否则从文件读取/生成并持久化
 _secret_key_env = os.environ.get('SECRET_KEY')
@@ -56,6 +60,25 @@ else:
         with open(_secret_key_file, 'w') as f:
             f.write(app.secret_key)
         os.chmod(_secret_key_file, 0o600)
+
+# CSRF 保护
+def generate_csrf_token():
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = hashlib.sha256(os.urandom(32)).hexdigest()
+    return session['_csrf_token']
+
+app.jinja_env.globals['csrf_token'] = generate_csrf_token
+
+def csrf_protect(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if request.method == 'POST':
+            token = request.form.get('csrf_token') or request.headers.get('X-CSRF-Token')
+            if not token or token != session.get('_csrf_token'):
+                flash('安全验证失败，请刷新页面重试', 'error')
+                return redirect(request.referrer or url_for('login'))
+        return f(*args, **kwargs)
+    return decorated_function
 
 # 登录失败限流（IP -> [timestamp, ...]），5分钟内最多5次
 _login_attempts = defaultdict(list)
@@ -275,6 +298,7 @@ def admin():
 
 @app.route('/admin/users', methods=['GET', 'POST'])
 @admin_required
+@csrf_protect
 def admin_users():
     if request.method == 'POST':
         action = request.form.get('action')
@@ -355,6 +379,7 @@ def admin_users():
 
 @app.route('/apply_transfer', methods=['POST'])
 @login_required
+@csrf_protect
 def apply_transfer():
     user_id = session['user_id']
     receiver = request.form.get('receiver')
@@ -558,6 +583,7 @@ def batch_export_transfer():
 
 @app.route('/admin/reset_users', methods=['GET', 'POST'])
 @admin_required
+@csrf_protect
 def reset_users():
     if request.method == 'POST':
         user_ids = request.form.getlist('user_ids')
@@ -579,6 +605,7 @@ def reset_users():
 
 @app.route('/admin/materials', methods=['GET', 'POST'])
 @admin_required
+@csrf_protect
 def admin_materials():
     if request.method == 'POST':
         try:
@@ -1167,6 +1194,7 @@ def export_archive():
 
 @app.route('/admin/cultivators', methods=['GET', 'POST'])
 @admin_required
+@csrf_protect
 def admin_cultivators():
     if request.method == 'POST':
         action = request.form.get('action')
@@ -1212,6 +1240,7 @@ def update_materials():
 
 @app.route('/admin/update_announcement', methods=['POST'])
 @admin_required
+@csrf_protect
 def update_announcement_route():
     try:
         content = request.form['content']
@@ -1226,6 +1255,7 @@ def update_announcement_route():
 
 @app.route('/admin/update_contact', methods=['POST'])
 @admin_required
+@csrf_protect
 def update_contact():
     try:
         phone = request.form['phone']
@@ -1238,6 +1268,7 @@ def update_contact():
 
 @app.route('/admin/update_help', methods=['POST'])
 @admin_required
+@csrf_protect
 def update_help():
     try:
         content = request.form['content']
@@ -1423,6 +1454,7 @@ def admin_fee_records():
 
 @app.route('/admin/fee_records/add', methods=['POST'])
 @admin_required
+@csrf_protect
 def add_fee_record_route():
     try:
         user_id = int(request.form['user_id'])
@@ -1476,6 +1508,7 @@ def delete_fee_record_route():
 
 @app.route('/admin/fee_records/batch_generate', methods=['POST'])
 @admin_required
+@csrf_protect
 def batch_generate_fees():
     try:
         year = int(request.form['year'])
