@@ -814,3 +814,215 @@ def ensure_operation_logs_table():
             ''')
     finally:
         conn.close()
+
+def ensure_fee_records_table():
+    """确保党费缴纳记录表存在"""
+    try:
+        conn = get_db()
+        with conn:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS fee_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    amount REAL NOT NULL DEFAULT 0,
+                    status TEXT NOT NULL DEFAULT '未缴纳',
+                    paid_date TEXT,
+                    remark TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+                    UNIQUE(user_id, year, month)
+                )
+            ''')
+    finally:
+        conn.close()
+
+def get_fee_records(user_id=None, year=None, month=None, status=None, page=1, per_page=20):
+    """获取党费缴纳记录，支持筛选和分页"""
+    try:
+        conn = get_db()
+        with conn:
+            where_clauses = []
+            params = []
+
+            if user_id:
+                where_clauses.append("fr.user_id = ?")
+                params.append(user_id)
+            if year:
+                where_clauses.append("fr.year = ?")
+                params.append(int(year))
+            if month:
+                where_clauses.append("fr.month = ?")
+                params.append(int(month))
+            if status:
+                where_clauses.append("fr.status = ?")
+                params.append(status)
+
+            where_sql = ("WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+            count_sql = f"SELECT COUNT(*) FROM fee_records fr {where_sql}"
+            total = conn.execute(count_sql, params).fetchone()[0]
+
+            offset = (page - 1) * per_page
+            data_sql = f'''
+                SELECT fr.id, fr.user_id, u.student_id, u.name, u.class_name, u.batch,
+                       fr.year, fr.month, fr.amount, fr.status, fr.paid_date, fr.remark
+                FROM fee_records fr
+                JOIN users u ON fr.user_id = u.id
+                {where_sql}
+                ORDER BY fr.year DESC, fr.month DESC, u.student_id
+                LIMIT ? OFFSET ?
+            '''
+            records = conn.execute(data_sql, params + [per_page, offset]).fetchall()
+
+        return {
+            'records': [dict(r) for r in records],
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page if total > 0 else 1
+        }
+    finally:
+        conn.close()
+
+def get_user_fee_records(user_id, year=None):
+    """获取指定用户的党费缴纳记录"""
+    try:
+        conn = get_db()
+        with conn:
+            if year:
+                records = conn.execute('''
+                    SELECT id, year, month, amount, status, paid_date, remark
+                    FROM fee_records WHERE user_id = ? AND year = ?
+                    ORDER BY year DESC, month DESC
+                ''', (user_id, int(year))).fetchall()
+            else:
+                records = conn.execute('''
+                    SELECT id, year, month, amount, status, paid_date, remark
+                    FROM fee_records WHERE user_id = ?
+                    ORDER BY year DESC, month DESC
+                ''', (user_id,)).fetchall()
+        return [dict(r) for r in records]
+    finally:
+        conn.close()
+
+def add_fee_record(user_id, year, month, amount, status='未缴纳', paid_date=None, remark=None):
+    """添加党费缴纳记录"""
+    try:
+        conn = get_db()
+        with conn:
+            conn.execute('''
+                INSERT INTO fee_records (user_id, year, month, amount, status, paid_date, remark, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (user_id, int(year), int(month), float(amount), status, paid_date, remark,
+                  datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+    finally:
+        conn.close()
+
+def update_fee_record(record_id, amount=None, status=None, paid_date=None, remark=None):
+    """更新党费缴纳记录"""
+    try:
+        conn = get_db()
+        with conn:
+            updates = []
+            params = []
+            if amount is not None:
+                updates.append("amount = ?")
+                params.append(float(amount))
+            if status is not None:
+                updates.append("status = ?")
+                params.append(status)
+            if paid_date is not None:
+                updates.append("paid_date = ?")
+                params.append(paid_date)
+            if remark is not None:
+                updates.append("remark = ?")
+                params.append(remark)
+            updates.append("updated_at = ?")
+            params.append(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+            params.append(int(record_id))
+            conn.execute(f"UPDATE fee_records SET {', '.join(updates)} WHERE id = ?", params)
+    finally:
+        conn.close()
+
+def delete_fee_record(record_id):
+    """删除党费缴纳记录"""
+    try:
+        conn = get_db()
+        with conn:
+            conn.execute('DELETE FROM fee_records WHERE id = ?', (int(record_id),))
+    finally:
+        conn.close()
+
+def batch_generate_fee_records(year, months, amount):
+    """批量生成党费缴纳记录（为所有非管理员用户）"""
+    try:
+        conn = get_db()
+        with conn:
+            users = conn.execute('SELECT id FROM users WHERE is_admin = 0').fetchall()
+            count = 0
+            for user in users:
+                for month in months:
+                    exists = conn.execute(
+                        'SELECT 1 FROM fee_records WHERE user_id = ? AND year = ? AND month = ?',
+                        (user['id'], int(year), int(month))
+                    ).fetchone()
+                    if not exists:
+                        conn.execute('''
+                            INSERT INTO fee_records (user_id, year, month, amount, status, updated_at)
+                            VALUES (?, ?, ?, ?, '未缴纳', ?)
+                        ''', (user['id'], int(year), int(month), float(amount),
+                              datetime.now().strftime('%Y-%m-%d %H:%M:%S')))
+                        count += 1
+        return count
+    finally:
+        conn.close()
+
+def get_fee_statistics(year=None):
+    """获取党费缴纳统计"""
+    try:
+        conn = get_db()
+        with conn:
+            year_filter = "WHERE fr.year = ?" if year else ""
+            params = [int(year)] if year else []
+
+            # 按状态统计
+            status_stats = conn.execute(f'''
+                SELECT fr.status, COUNT(*) as count, SUM(fr.amount) as total_amount
+                FROM fee_records fr
+                {year_filter}
+                GROUP BY fr.status
+            ''', params).fetchall()
+
+            # 按月统计
+            month_stats = conn.execute(f'''
+                SELECT fr.year, fr.month, 
+                       SUM(CASE WHEN fr.status = '已缴纳' THEN 1 ELSE 0 END) as paid_count,
+                       SUM(CASE WHEN fr.status = '未缴纳' THEN 1 ELSE 0 END) as unpaid_count,
+                       COUNT(*) as total_count
+                FROM fee_records fr
+                {year_filter}
+                GROUP BY fr.year, fr.month
+                ORDER BY fr.year DESC, fr.month DESC
+            ''', params).fetchall()
+
+            # 总体统计
+            total_records = conn.execute(f'''
+                SELECT COUNT(*) FROM fee_records fr {year_filter}
+            ''', params).fetchone()[0]
+
+            paid_records = conn.execute(f'''
+                SELECT COUNT(*) FROM fee_records fr {year_filter}{' AND' if year else 'WHERE'} fr.status = '已缴纳'
+            ''', params).fetchone()[0]
+
+        return {
+            'status_stats': [dict(r) for r in status_stats],
+            'month_stats': [dict(r) for r in month_stats],
+            'total_records': total_records,
+            'paid_records': paid_records,
+            'unpaid_records': total_records - paid_records
+        }
+    finally:
+        conn.close()

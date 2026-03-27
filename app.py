@@ -12,7 +12,9 @@ from database import (
     update_cultivator, delete_cultivator, get_user_cultivator_ids, update_user_cultivators,
     clean_unused_materials, delete_material, get_all_identities, update_user_identities,
     reset_user_data, get_user_identity_ids, log_operation, get_operation_logs,
-    search_operation_logs
+    search_operation_logs, ensure_fee_records_table,
+    get_fee_records, get_user_fee_records, add_fee_record, update_fee_record,
+    delete_fee_record, batch_generate_fee_records, get_fee_statistics
 )
 import json
 import logging
@@ -52,6 +54,7 @@ else:
 # 确保数据库表存在
 from database import ensure_operation_logs_table
 ensure_operation_logs_table()
+ensure_fee_records_table()
 
 # Define add_role filter
 def add_role_filter(value, cultivators):
@@ -636,11 +639,13 @@ def upload_material_image():
 def get_material_image(user_id, material_id, image_id):
     try:
         conn = get_db()
-        result = conn.execute('''
-            SELECT file_data FROM material_images
-            WHERE user_id = ? AND material_id = ? AND id = ?
-        ''', (user_id, material_id, image_id)).fetchone()
-        conn.close()
+        try:
+            result = conn.execute('''
+                SELECT file_data FROM material_images
+                WHERE user_id = ? AND material_id = ? AND id = ?
+            ''', (user_id, material_id, image_id)).fetchone()
+        finally:
+            conn.close()
         
         if not result:
             return jsonify({'success': False, 'error': '未找到图片'}), 404
@@ -1062,6 +1067,197 @@ def statistics():
         logger.error(f"Error loading statistics: {str(e)}")
         flash(f'加载统计数据失败：{str(e)}', 'error')
         return redirect(url_for('admin'))
+
+# ==================== 党费缴纳记录管理 ====================
+
+@app.route('/admin/fee_records')
+@admin_required
+def admin_fee_records():
+    year = request.args.get('year', '').strip() or None
+    month = request.args.get('month', '').strip() or None
+    status = request.args.get('status', '').strip() or None
+    page = int(request.args.get('page', 1))
+
+    result = get_fee_records(year=year, month=month, status=status, page=page, per_page=20)
+    statistics = get_fee_statistics(year=year)
+    users = get_all_users()
+
+    return render_template('admin_fee_records.html',
+                         records=result['records'],
+                         total=result['total'],
+                         page=result['page'],
+                         total_pages=result['total_pages'],
+                         statistics=statistics,
+                         users=[dict(u) for u in users if not u['is_admin']],
+                         filter_year=year,
+                         filter_month=month,
+                         filter_status=status)
+
+@app.route('/admin/fee_records/add', methods=['POST'])
+@admin_required
+def add_fee_record_route():
+    try:
+        user_id = int(request.form['user_id'])
+        year = int(request.form['year'])
+        month = int(request.form['month'])
+        amount = float(request.form['amount'])
+        status = request.form.get('status', '未缴纳')
+        paid_date = request.form.get('paid_date') or None
+        remark = request.form.get('remark', '').strip() or None
+
+        add_fee_record(user_id, year, month, amount, status, paid_date, remark)
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '添加党费记录',
+                     f'用户ID:{user_id}', f'{year}年{month}月 {amount}元')
+        flash('党费记录添加成功', 'success')
+    except sqlite3.IntegrityError:
+        flash('该用户在此月份已有记录', 'error')
+    except Exception as e:
+        flash(f'添加失败：{str(e)}', 'error')
+        logger.error(f"Error adding fee record: {str(e)}")
+    return redirect(url_for('admin_fee_records'))
+
+@app.route('/admin/fee_records/update', methods=['POST'])
+@admin_required
+def update_fee_record_route():
+    try:
+        record_id = int(request.form['record_id'])
+        amount = float(request.form['amount']) if request.form.get('amount') else None
+        status = request.form.get('status')
+        paid_date = request.form.get('paid_date') or None
+        remark = request.form.get('remark', '').strip() or None
+
+        update_fee_record(record_id, amount=amount, status=status, paid_date=paid_date, remark=remark)
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '更新党费记录',
+                     f'记录ID:{record_id}', f'状态:{status}')
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error updating fee record: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/fee_records/delete', methods=['POST'])
+@admin_required
+def delete_fee_record_route():
+    try:
+        record_id = int(request.form['record_id'])
+        delete_fee_record(record_id)
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '删除党费记录', f'记录ID:{record_id}')
+        return jsonify({'success': True})
+    except Exception as e:
+        logger.error(f"Error deleting fee record: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/fee_records/batch_generate', methods=['POST'])
+@admin_required
+def batch_generate_fees():
+    try:
+        year = int(request.form['year'])
+        months = [int(m) for m in request.form.getlist('months')]
+        amount = float(request.form['amount'])
+
+        if not months:
+            flash('请至少选择一个月份', 'error')
+            return redirect(url_for('admin_fee_records'))
+
+        count = batch_generate_fee_records(year, months, amount)
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '批量生成党费记录',
+                     f'{year}年 {len(months)}个月', f'生成{count}条')
+        flash(f'成功生成 {count} 条党费记录', 'success')
+    except Exception as e:
+        flash(f'批量生成失败：{str(e)}', 'error')
+        logger.error(f"Error batch generating fees: {str(e)}")
+    return redirect(url_for('admin_fee_records'))
+
+@app.route('/admin/fee_records/export')
+@admin_required
+def export_fee_records():
+    try:
+        year = request.args.get('year', '').strip() or None
+        month = request.args.get('month', '').strip() or None
+        status = request.args.get('status', '').strip() or None
+
+        result = get_fee_records(year=year, month=month, status=status, page=1, per_page=10000)
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "党费缴纳记录"
+
+        headers = ['学号', '姓名', '班级', '批次', '年份', '月份', '金额(元)', '缴纳状态', '缴纳日期', '备注']
+        ws.append(headers)
+
+        header_font = Font(bold=True)
+        header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        for record in result['records']:
+            ws.append([
+                record['student_id'],
+                record['name'],
+                record['class_name'],
+                record['batch'] or '未分配',
+                record['year'],
+                record['month'],
+                record['amount'],
+                record['status'],
+                record['paid_date'] or '',
+                record['remark'] or ''
+            ])
+
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            ws.column_dimensions[column].width = (max_length + 2) * 1.2
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'fee_records_{timestamp}.xlsx'
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        logger.error(f"Error exporting fee records: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/admin/api/fee_records')
+@admin_required
+def api_fee_records():
+    try:
+        search = request.args.get('search', '').strip()
+        year = request.args.get('year', '').strip() or None
+        month = request.args.get('month', '').strip() or None
+        status = request.args.get('status', '').strip() or None
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+
+        result = get_fee_records(year=year, month=month, status=status, page=page, per_page=per_page)
+
+        if search:
+            search_lower = search.lower()
+            result['records'] = [r for r in result['records']
+                if search_lower in r['student_id'].lower()
+                or search_lower in r['name'].lower()
+                or search_lower in (r['class_name'] or '').lower()]
+            result['total'] = len(result['records'])
+
+        return jsonify({'success': True, **result})
+    except Exception as e:
+        logger.error(f"Error fetching fee records: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=False, host='0.0.0.0', port=8888)

@@ -111,6 +111,10 @@
                                 class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
                                 <i class="fas fa-clipboard-list mr-1"></i>日志
                             </a>
+                            <a href="{{ url_for('admin_fee_records') }}"
+                                class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
+                                <i class="fas fa-coins mr-1"></i>党费
+                            </a>
                             <a href="{{ url_for('statistics') }}"
                                 class="nav-item hover:bg-red-700 px-3 py-2 rounded-md text-sm font-medium transition-all duration-200">
                                 <i class="fas fa-chart-pie mr-1"></i>统计
@@ -181,6 +185,10 @@
                     <a href="{{ url_for('operation_logs') }}"
                         class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
                         <i class="fas fa-clipboard-list mr-2"></i>操作日志
+                    </a>
+                    <a href="{{ url_for('admin_fee_records') }}"
+                        class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
+                        <i class="fas fa-coins mr-2"></i>党费管理
                     </a>
                     <a href="{{ url_for('statistics') }}"
                         class="mobile-nav-item block px-3 py-2 rounded-md text-base font-medium">
@@ -272,10 +280,13 @@
     <!-- JavaScript -->
     <script src="{{ url_for('static', filename='js/signature.js') }}"></script>
     <script>
-        document.getElementById('mobile-menu-button').addEventListener('click', function () {
-            const menu = document.getElementById('mobile-menu');
-            menu.classList.toggle('hidden');
-        });
+        const menuBtn = document.getElementById('mobile-menu-button');
+        if (menuBtn) {
+            menuBtn.addEventListener('click', function () {
+                const menu = document.getElementById('mobile-menu');
+                if (menu) menu.classList.toggle('hidden');
+            });
+        }
         function toggleDarkMode() {
             document.documentElement.classList.toggle('dark');
             localStorage.setItem('darkMode', document.documentElement.classList.contains('dark'));

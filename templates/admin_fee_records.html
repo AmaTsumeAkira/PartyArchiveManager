@@ -1,0 +1,439 @@
+{% extends "base.html" %}
+{% block title %}党费缴纳管理 - 档案转接系统{% endblock %}
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <header class="mb-8 animate-fadeIn">
+        <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100">党费缴纳管理</h1>
+                <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">管理党员党费缴纳记录</p>
+            </div>
+            <div class="flex space-x-2">
+                <button onclick="openBatchModal()" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center text-sm">
+                    <i class="fas fa-magic mr-2"></i> 批量生成
+                </button>
+                <button onclick="openAddModal()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md shadow-sm transition duration-200 flex items-center text-sm">
+                    <i class="fas fa-plus mr-2"></i> 添加记录
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Statistics Cards -->
+    <div class="grid grid-cols-1 gap-4 mb-6 md:grid-cols-4 animate-fadeIn">
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <p class="text-sm text-gray-500 dark:text-gray-400">总记录数</p>
+            <p class="text-2xl font-semibold text-gray-900 dark:text-gray-100">{{ statistics.total_records }}</p>
+        </div>
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <p class="text-sm text-gray-500 dark:text-gray-400">已缴纳</p>
+            <p class="text-2xl font-semibold text-green-600">{{ statistics.paid_records }}</p>
+        </div>
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <p class="text-sm text-gray-500 dark:text-gray-400">未缴纳</p>
+            <p class="text-2xl font-semibold text-red-600">{{ statistics.unpaid_records }}</p>
+        </div>
+        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow">
+            <p class="text-sm text-gray-500 dark:text-gray-400">缴纳率</p>
+            <p class="text-2xl font-semibold text-blue-600">
+                {% if statistics.total_records > 0 %}
+                    {{ "%.1f"|format(statistics.paid_records / statistics.total_records * 100) }}%
+                {% else %}
+                    0%
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 animate-fadeIn">
+        <form method="GET" class="flex flex-col md:flex-row md:items-end md:space-x-4 gap-4">
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年份</label>
+                <select name="year" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">全部年份</option>
+                    {% for y in range(2024, 2027) %}
+                    <option value="{{ y }}" {% if filter_year == y|string %}selected{% endif %}>{{ y }}年</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">月份</label>
+                <select name="month" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">全部月份</option>
+                    {% for m in range(1, 13) %}
+                    <option value="{{ m }}" {% if filter_month == m|string %}selected{% endif %}>{{ m }}月</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
+                <select name="status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">全部状态</option>
+                    <option value="已缴纳" {% if filter_status == '已缴纳' %}selected{% endif %}>已缴纳</option>
+                    <option value="未缴纳" {% if filter_status == '未缴纳' %}selected{% endif %}>未缴纳</option>
+                </select>
+            </div>
+            <div class="flex space-x-2">
+                <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md transition text-sm">
+                    <i class="fas fa-search mr-1"></i> 筛选
+                </button>
+                <a href="{{ url_for('admin_fee_records') }}" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 dark:bg-gray-600 dark:hover:bg-gray-500 text-gray-700 dark:text-gray-200 rounded-md transition text-sm">
+                    重置
+                </a>
+                <a href="{{ url_for('export_fee_records', year=filter_year, month=filter_month, status=filter_status) }}" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md transition text-sm">
+                    <i class="fas fa-file-excel mr-1"></i> 导出
+                </a>
+            </div>
+        </form>
+    </div>
+
+    <!-- Records Table -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 animate-fadeIn">
+        <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
+                <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
+                    <tr>
+                        <th class="py-3 px-4">学号</th>
+                        <th class="py-3 px-4">姓名</th>
+                        <th class="py-3 px-4">班级</th>
+                        <th class="py-3 px-4">年/月</th>
+                        <th class="py-3 px-4">金额</th>
+                        <th class="py-3 px-4">状态</th>
+                        <th class="py-3 px-4">缴纳日期</th>
+                        <th class="py-3 px-4">备注</th>
+                        <th class="py-3 px-4">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr class="border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition">
+                        <td class="py-3 px-4">{{ record.student_id }}</td>
+                        <td class="py-3 px-4">{{ record.name }}</td>
+                        <td class="py-3 px-4">{{ record.class_name }}</td>
+                        <td class="py-3 px-4">{{ record.year }}年{{ record.month }}月</td>
+                        <td class="py-3 px-4">¥{{ "%.2f"|format(record.amount) }}</td>
+                        <td class="py-3 px-4">
+                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                                {% if record.status == '已缴纳' %}bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100
+                                {% else %}bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100{% endif %}">
+                                {{ record.status }}
+                            </span>
+                        </td>
+                        <td class="py-3 px-4">{{ record.paid_date or '-' }}</td>
+                        <td class="py-3 px-4 max-w-[120px] truncate" title="{{ record.remark or '' }}">{{ record.remark or '-' }}</td>
+                        <td class="py-3 px-4 space-x-2">
+                            <button onclick='editRecord({{ record|tojson }})' class="text-indigo-600 hover:text-indigo-800 dark:text-indigo-400 dark:hover:text-indigo-300 transition" title="编辑">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button onclick="deleteRecord({{ record.id }}, '{{ record.name }}', '{{ record.year }}年{{ record.month }}月')" class="text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300 transition" title="删除">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                    {% if not records %}
+                    <tr>
+                        <td colspan="9" class="py-8 text-center text-gray-500 dark:text-gray-400">暂无记录</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if total_pages > 1 %}
+        <div class="mt-6 flex justify-between items-center">
+            <div class="text-sm text-gray-700 dark:text-gray-300">共 {{ total }} 条记录</div>
+            <div class="flex space-x-1">
+                {% for p in range(1, total_pages + 1) %}
+                <a href="?page={{ p }}{% if filter_year %}&year={{ filter_year }}{% endif %}{% if filter_month %}&month={{ filter_month }}{% endif %}{% if filter_status %}&status={{ filter_status }}{% endif %}"
+                   class="px-3 py-1 border rounded-md text-sm {% if p == page %}bg-red-600 text-white border-red-600{% else %}text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600{% endif %}">
+                    {{ p }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Add Record Modal -->
+<div id="addModal" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-lg mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">添加党费记录</h3>
+            <button onclick="closeAddModal()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form action="{{ url_for('add_fee_record_route') }}" method="POST">
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">用户</label>
+                    <select name="user_id" id="add_user_id" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                        <option value="">选择用户...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年份</label>
+                    <select name="year" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                        {% for y in range(2024, 2027) %}
+                        <option value="{{ y }}">{{ y }}年</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">月份</label>
+                    <select name="month" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                        {% for m in range(1, 13) %}
+                        <option value="{{ m }}">{{ m }}月</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">金额(元)</label>
+                    <input type="number" name="amount" step="0.01" min="0" value="0.20" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
+                    <select name="status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                        <option value="未缴纳">未缴纳</option>
+                        <option value="已缴纳">已缴纳</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">缴纳日期</label>
+                    <input type="date" name="paid_date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注</label>
+                    <input type="text" name="remark" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button type="button" onclick="closeAddModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">取消</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm">添加</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Edit Record Modal -->
+<div id="editModal" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-lg mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">编辑党费记录</h3>
+            <button onclick="closeEditModal()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form id="editForm">
+            <input type="hidden" name="record_id" id="edit_record_id">
+            <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">用户: <span id="edit_user_info" class="font-medium text-gray-900 dark:text-gray-100"></span></p>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">金额(元)</label>
+                    <input type="number" name="amount" id="edit_amount" step="0.01" min="0" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">状态</label>
+                    <select name="status" id="edit_status" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                        <option value="未缴纳">未缴纳</option>
+                        <option value="已缴纳">已缴纳</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">缴纳日期</label>
+                    <input type="date" name="paid_date" id="edit_paid_date" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">备注</label>
+                    <input type="text" name="remark" id="edit_remark" class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 mt-6">
+                <button type="button" onclick="closeEditModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">取消</button>
+                <button type="submit" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm">保存</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Batch Generate Modal -->
+<div id="batchModal" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl w-full max-w-lg mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">批量生成党费记录</h3>
+            <button onclick="closeBatchModal()" class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+                <i class="fas fa-times text-xl"></i>
+            </button>
+        </div>
+        <form action="{{ url_for('batch_generate_fees') }}" method="POST">
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">年份</label>
+                <select name="year" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+                    {% for y in range(2024, 2027) %}
+                    <option value="{{ y }}">{{ y }}年</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">月份（可多选）</label>
+                <div class="grid grid-cols-4 gap-2">
+                    {% for m in range(1, 13) %}
+                    <label class="flex items-center space-x-1 text-sm text-gray-700 dark:text-gray-300">
+                        <input type="checkbox" name="months" value="{{ m }}" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500">
+                        <span>{{ m }}月</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                <button type="button" onclick="toggleAllMonths()" class="mt-2 text-xs text-indigo-600 dark:text-indigo-400 hover:underline">全选/取消全选</button>
+            </div>
+            <div class="mb-4">
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">每月金额(元)</label>
+                <input type="number" name="amount" step="0.01" min="0" value="0.20" required class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 dark:bg-gray-700 dark:text-gray-100">
+            </div>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-4">将为所有非管理员用户生成指定月份的缴费记录（已有记录不会重复生成）</p>
+            <div class="flex justify-end space-x-2">
+                <button type="button" onclick="closeBatchModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">取消</button>
+                <button type="submit" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm">生成</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="deleteModal" class="fixed inset-0 z-50 bg-black bg-opacity-50 hidden flex items-center justify-center animate-fadeIn">
+    <div class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-2xl max-w-md w-full mx-4">
+        <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">确认删除</h3>
+        <p class="text-sm text-gray-700 dark:text-gray-300 mb-6">确认删除 <span id="deleteInfo" class="font-semibold"></span> 的党费记录吗？</p>
+        <div class="flex justify-end space-x-2">
+            <button onclick="closeDeleteModal()" class="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">取消</button>
+            <button onclick="confirmDelete()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md text-sm">删除</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const usersData = {{ users|tojson }};
+let deleteRecordId = null;
+
+// Populate user select on load
+document.addEventListener('DOMContentLoaded', function() {
+    const select = document.getElementById('add_user_id');
+    usersData.forEach(user => {
+        const option = document.createElement('option');
+        option.value = user.id;
+        option.textContent = user.name + ' (' + user.student_id + ') - ' + (user.class_name || '');
+        select.appendChild(option);
+    });
+});
+
+function openAddModal() {
+    document.getElementById('addModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function editRecord(record) {
+    document.getElementById('edit_record_id').value = record.id;
+    document.getElementById('edit_user_info').textContent = record.name + ' (' + record.student_id + ') - ' + record.year + '年' + record.month + '月';
+    document.getElementById('edit_amount').value = record.amount;
+    document.getElementById('edit_status').value = record.status;
+    document.getElementById('edit_paid_date').value = record.paid_date || '';
+    document.getElementById('edit_remark').value = record.remark || '';
+    document.getElementById('editModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeEditModal() {
+    document.getElementById('editModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+// Edit form submission
+document.getElementById('editForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    fetch('{{ url_for("update_fee_record_route") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('更新失败: ' + data.error);
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+});
+
+function openBatchModal() {
+    document.getElementById('batchModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeBatchModal() {
+    document.getElementById('batchModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+}
+
+function toggleAllMonths() {
+    const checkboxes = document.querySelectorAll('input[name="months"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    checkboxes.forEach(cb => cb.checked = !allChecked);
+}
+
+function deleteRecord(id, name, period) {
+    deleteRecordId = id;
+    document.getElementById('deleteInfo').textContent = name + ' ' + period;
+    document.getElementById('deleteModal').classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+}
+
+function closeDeleteModal() {
+    document.getElementById('deleteModal').classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+    deleteRecordId = null;
+}
+
+function confirmDelete() {
+    if (!deleteRecordId) return;
+    const formData = new FormData();
+    formData.append('record_id', deleteRecordId);
+    fetch('{{ url_for("delete_fee_record_route") }}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('删除失败: ' + data.error);
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
+// Close modals on outside click
+window.addEventListener('click', function(e) {
+    ['addModal', 'editModal', 'batchModal', 'deleteModal'].forEach(id => {
+        if (e.target === document.getElementById(id)) {
+            document.getElementById(id).classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+        }
+    });
+});
+</script>
+{% endblock %}
