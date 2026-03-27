@@ -20,6 +20,8 @@ import json
 import logging
 import io
 import os
+import time
+from collections import defaultdict
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill
 from datetime import datetime
@@ -36,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 
+# Session security settings
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 # SECRET_KEY: 优先使用环境变量，否则从文件读取/生成并持久化
 _secret_key_env = os.environ.get('SECRET_KEY')
 if _secret_key_env:
@@ -50,6 +56,25 @@ else:
         with open(_secret_key_file, 'w') as f:
             f.write(app.secret_key)
         os.chmod(_secret_key_file, 0o600)
+
+# 登录失败限流（IP -> [timestamp, ...]），5分钟内最多5次
+_login_attempts = defaultdict(list)
+_LOGIN_MAX_ATTEMPTS = 5
+_LOGIN_WINDOW = 300  # 5 minutes
+
+def _check_login_rate_limit(ip):
+    """检查登录频率限制，返回 True 表示允许"""
+    now = time.time()
+    attempts = _login_attempts[ip]
+    # 清理过期记录
+    _login_attempts[ip] = [t for t in attempts if now - t < _LOGIN_WINDOW]
+    if len(_login_attempts[ip]) >= _LOGIN_MAX_ATTEMPTS:
+        return False
+    return True
+
+def _record_login_failure(ip):
+    """记录一次登录失败"""
+    _login_attempts[ip].append(time.time())
 
 # 确保数据库表存在
 from database import ensure_operation_logs_table
@@ -92,8 +117,15 @@ def index():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        student_id = request.form['student_id']
-        password = request.form['password']
+        client_ip = request.remote_addr or 'unknown'
+        if not _check_login_rate_limit(client_ip):
+            flash('登录尝试过于频繁，请5分钟后再试', 'error')
+            return render_template('login.html')
+        student_id = request.form.get('student_id', '').strip()
+        password = request.form.get('password', '')
+        if not student_id or not password:
+            flash('学号和密码不能为空', 'error')
+            return render_template('login.html')
         user = get_user_by_student_id(student_id)
         if user and check_password_hash(user['password'], password):
             session['user_id'] = user['id']
@@ -104,6 +136,7 @@ def login():
                 log_operation(user['id'], student_id, '管理员登录')
                 return redirect(url_for('admin'))
             return redirect(url_for('transfer_popup'))
+        _record_login_failure(client_ip)
         flash('学号或密码错误', 'error')
     return render_template('login.html')
 
@@ -247,11 +280,17 @@ def admin_users():
         action = request.form.get('action')
         try:
             if action == 'add':
-                student_id = request.form['student_id']
-                name = request.form['name']
+                student_id = request.form['student_id'].strip()
+                name = request.form['name'].strip()
                 password = request.form['password']
-                class_name = request.form['class_name']
-                batch = request.form['batch']
+                class_name = request.form['class_name'].strip()
+                batch = request.form.get('batch', '').strip()
+                if not student_id or not name or not password:
+                    flash('学号、姓名和密码不能为空', 'error')
+                    return redirect(url_for('admin_users'))
+                if len(password) < 6:
+                    flash('密码长度不能少于6位', 'error')
+                    return redirect(url_for('admin_users'))
                 is_admin = 1 if request.form.get('is_admin') == 'on' else 0
                 identity_ids = [int(i) for i in request.form.getlist('identities')]
                 cultivator_ids = [int(i) for i in request.form.getlist('cultivators')]
@@ -338,7 +377,7 @@ def admin_update_transfer_status():
         user_id = int(request.form['user_id'])
         transfer_status = request.form['transfer_status']
         receive_status = request.form['receive_status']
-        progress = int(request.form['progress'])
+        progress = max(0, min(100, int(request.form['progress'])))
         receiver = request.form.get('receiver', '')
         transfer_date = request.form.get('transfer_date', '')
         update_transfer_status(user_id, transfer_status, receive_status, 
@@ -349,25 +388,71 @@ def admin_update_transfer_status():
         logger.error(f"Error updating transfer status for user_id={user_id}: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/admin/batch_update_transfer', methods=['POST'])
+@admin_required
+def batch_update_transfer():
+    """批量更新转接状态"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': '无效的请求数据'}), 400
+        
+        user_ids = data.get('user_ids', [])
+        transfer_status = data.get('transfer_status', '')
+        receive_status = data.get('receive_status', '')
+        progress = data.get('progress')
+        receiver = data.get('receiver', '')
+        
+        if not user_ids:
+            return jsonify({'success': False, 'error': '请至少选择一个用户'}), 400
+        if not transfer_status:
+            return jsonify({'success': False, 'error': '请选择转接状态'}), 400
+        
+        progress = max(0, min(100, int(progress))) if progress is not None else None
+        
+        conn = get_db()
+        try:
+            for user_id in user_ids:
+                user_id = int(user_id)
+                if progress is not None:
+                    update_transfer_status(user_id, transfer_status, receive_status or '待确认',
+                                         receiver=receiver, progress=progress)
+                else:
+                    # 保持原有进度
+                    ts = get_transfer_status(user_id)
+                    update_transfer_status(user_id, transfer_status, receive_status or ts['receive_status'],
+                                         receiver=receiver or ts['receiver'], progress=ts['progress'])
+        finally:
+            conn.close()
+        
+        log_operation(session['user_id'], session.get('student_id', '管理员'), '批量更新转接状态',
+                     f'{len(user_ids)}个用户', f'状态:{transfer_status}')
+        return jsonify({'success': True, 'count': len(user_ids)})
+    except Exception as e:
+        logger.error(f"Error batch updating transfer status: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/admin/transfer_status')
 @admin_required
 def admin_transfer_status():
     try:
         conn = get_db()
-        users = conn.execute('''
-            SELECT u.id, u.student_id, u.name, u.class_name, u.batch,
-                   GROUP_CONCAT(i.name) as identity_names,
-                   ts.transfer_status, ts.receive_status, ts.receiver, ts.progress, ts.transfer_date
-            FROM users u
-            LEFT JOIN user_identities ui ON u.id = ui.user_id
-            LEFT JOIN identities i ON ui.identity_id = i.id
-            LEFT JOIN transfer_status ts ON u.id = ts.user_id
-            WHERE u.is_admin = 0
-            GROUP BY u.id
-            ORDER BY u.id
-        ''').fetchall()
-        identities = conn.execute('SELECT DISTINCT name FROM identities').fetchall()
-        conn.close()
+        try:
+            users = conn.execute('''
+                SELECT u.id, u.student_id, u.name, u.class_name, u.batch,
+                       GROUP_CONCAT(i.name) as identity_names,
+                       ts.transfer_status, ts.receive_status, ts.receiver, ts.progress, ts.transfer_date
+                FROM users u
+                LEFT JOIN user_identities ui ON u.id = ui.user_id
+                LEFT JOIN identities i ON ui.identity_id = i.id
+                LEFT JOIN transfer_status ts ON u.id = ts.user_id
+                WHERE u.is_admin = 0
+                GROUP BY u.id
+                ORDER BY u.id
+            ''').fetchall()
+            identities = conn.execute('SELECT DISTINCT name FROM identities').fetchall()
+        finally:
+            conn.close()
         users = [dict(user) for user in users]
         for user in users:
             user['identity_names'] = user['identity_names'].split(',') if user['identity_names'] else []
@@ -378,6 +463,102 @@ def admin_transfer_status():
         logger.error(f"Error fetching transfer statuses: {str(e)}")
         flash(f'加载失败：{str(e)}', 'error')
         return redirect(url_for('admin'))
+
+@app.route('/admin/batch_export_transfer', methods=['POST'])
+@admin_required
+def batch_export_transfer():
+    """批量导出转接状态为Excel"""
+    try:
+        data = request.get_json()
+        user_ids = data.get('user_ids', []) if data else []
+        
+        conn = get_db()
+        try:
+            if user_ids:
+                placeholders = ','.join('?' * len(user_ids))
+                users = conn.execute(f'''
+                    SELECT u.id, u.student_id, u.name, u.class_name, u.batch,
+                           GROUP_CONCAT(i.name) as identity_names,
+                           ts.transfer_status, ts.receive_status, ts.receiver, ts.progress, ts.transfer_date
+                    FROM users u
+                    LEFT JOIN user_identities ui ON u.id = ui.user_id
+                    LEFT JOIN identities i ON ui.identity_id = i.id
+                    LEFT JOIN transfer_status ts ON u.id = ts.user_id
+                    WHERE u.id IN ({placeholders})
+                    GROUP BY u.id
+                    ORDER BY u.id
+                ''', user_ids).fetchall()
+            else:
+                users = conn.execute('''
+                    SELECT u.id, u.student_id, u.name, u.class_name, u.batch,
+                           GROUP_CONCAT(i.name) as identity_names,
+                           ts.transfer_status, ts.receive_status, ts.receiver, ts.progress, ts.transfer_date
+                    FROM users u
+                    LEFT JOIN user_identities ui ON u.id = ui.user_id
+                    LEFT JOIN identities i ON ui.identity_id = i.id
+                    LEFT JOIN transfer_status ts ON u.id = ts.user_id
+                    WHERE u.is_admin = 0
+                    GROUP BY u.id
+                    ORDER BY u.id
+                ''').fetchall()
+        finally:
+            conn.close()
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "转接状态"
+
+        headers = ['学号', '姓名', '班级', '批次', '政治身份', '转接状态', '接收状态', '接收地', '进度(%)', '转出时间']
+        ws.append(headers)
+
+        header_font = Font(bold=True)
+        header_fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
+        for cell in ws[1]:
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.alignment = Alignment(horizontal="center", vertical="center")
+
+        for user in users:
+            ws.append([
+                user['student_id'],
+                user['name'],
+                user['class_name'] or '未知',
+                user['batch'] or '未分配',
+                user['identity_names'] or '无',
+                user['transfer_status'] or '未开始',
+                user['receive_status'] or '未开始',
+                user['receiver'] or '待定',
+                user['progress'] or 0,
+                user['transfer_date'] or ''
+            ])
+
+        for col in ws.columns:
+            max_length = 0
+            column = col[0].column_letter
+            for cell in col:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            ws.column_dimensions[column].width = (max_length + 2) * 1.2
+
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        filename = f'transfer_status_{timestamp}.xlsx'
+
+        return send_file(
+            output,
+            mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        logger.error(f"Error batch exporting transfer status: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/admin/reset_users', methods=['GET', 'POST'])
 @admin_required
@@ -669,13 +850,15 @@ def get_material_image(user_id, material_id, image_id):
 def get_material_images(user_id, material_id):
     try:
         conn = get_db()
-        images = conn.execute('''
-            SELECT id, created_at
-            FROM material_images
-            WHERE user_id = ? AND material_id = ?
-            ORDER BY created_at
-        ''', (user_id, material_id)).fetchall()
-        conn.close()
+        try:
+            images = conn.execute('''
+                SELECT id, created_at
+                FROM material_images
+                WHERE user_id = ? AND material_id = ?
+                ORDER BY created_at
+            ''', (user_id, material_id)).fetchall()
+        finally:
+            conn.close()
         
         images_data = [{'id': img['id'], 'created_at': img['created_at']} for img in images]
         return jsonify({'success': True, 'images': images_data})

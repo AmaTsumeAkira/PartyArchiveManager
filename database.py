@@ -517,6 +517,8 @@ def delete_user(user_id):
             conn.execute('DELETE FROM transfer_status WHERE user_id = ?', (user_id,))
             conn.execute('DELETE FROM signatures WHERE user_id = ?', (user_id,))
             conn.execute('DELETE FROM user_cultivators WHERE user_id = ?', (user_id,))
+            conn.execute('DELETE FROM material_images WHERE user_id = ?', (user_id,))
+            conn.execute('DELETE FROM fee_records WHERE user_id = ?', (user_id,))
             conn.execute('DELETE FROM users WHERE id = ?', (user_id,))
     finally:
         conn.close()
@@ -540,6 +542,8 @@ def reset_user_data(user_id=None):
                 ''', (user_id,))
                 # 删除单个用户的签名
                 conn.execute('DELETE FROM signatures WHERE user_id = ?', (user_id,))
+                # 删除单个用户的材料图片
+                conn.execute('DELETE FROM material_images WHERE user_id = ?', (user_id,))
             else:
                 # 重置所有用户的材料状态
                 conn.execute('''
@@ -553,6 +557,8 @@ def reset_user_data(user_id=None):
                 ''')
                 # 删除所有签名
                 conn.execute('DELETE FROM signatures')
+                # 删除所有材料图片
+                conn.execute('DELETE FROM material_images')
     finally:
         conn.close()
 
@@ -1013,8 +1019,9 @@ def get_fee_statistics(year=None):
                 SELECT COUNT(*) FROM fee_records fr {year_filter}
             ''', params).fetchone()[0]
 
+            paid_where = f"{year_filter} AND" if year else "WHERE"
             paid_records = conn.execute(f'''
-                SELECT COUNT(*) FROM fee_records fr {year_filter}{' AND' if year else 'WHERE'} fr.status = '已缴纳'
+                SELECT COUNT(*) FROM fee_records fr {paid_where} fr.status = '已缴纳'
             ''', params).fetchone()[0]
 
         return {

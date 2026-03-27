@@ -12,6 +12,38 @@
         </div>
     </header>
 
+    <!-- Batch Operations Bar -->
+    <div id="batchBar" class="hidden bg-indigo-50 dark:bg-indigo-900 rounded-lg shadow-lg p-4 mb-6 animate-fadeIn">
+        <div class="flex flex-col md:flex-row md:items-center md:space-x-4 gap-3">
+            <span class="text-sm font-medium text-indigo-800 dark:text-indigo-200">
+                已选择 <strong id="selectedCount">0</strong> 个用户
+            </span>
+            <div class="flex flex-wrap gap-2">
+                <select id="batchTransferStatus" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">选择转接状态...</option>
+                    <option value="处理中">处理中</option>
+                    <option value="已完成">已完成</option>
+                    <option value="已放弃">已放弃</option>
+                </select>
+                <select id="batchReceiveStatus" class="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-gray-100">
+                    <option value="">选择接收状态...</option>
+                    <option value="待确认">待确认</option>
+                    <option value="已确认">已确认</option>
+                </select>
+                <input type="number" id="batchProgress" min="0" max="100" placeholder="进度(%)" class="w-24 px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-md text-sm dark:bg-gray-700 dark:text-gray-100">
+                <button onclick="batchUpdate()" class="px-4 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm transition">
+                    <i class="fas fa-check mr-1"></i> 批量更新
+                </button>
+                <button onclick="batchExport()" class="px-4 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-md text-sm transition">
+                    <i class="fas fa-file-excel mr-1"></i> 导出选中
+                </button>
+                <button onclick="clearSelection()" class="px-4 py-1.5 bg-gray-500 hover:bg-gray-600 text-white rounded-md text-sm transition">
+                    <i class="fas fa-times mr-1"></i> 取消选择
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Filter and Search Section -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-6 animate-fadeIn">
         <h2 class="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">筛选用户</h2>
@@ -67,6 +99,9 @@
             <table class="w-full text-left text-sm text-gray-700 dark:text-gray-300">
                 <thead class="bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 uppercase text-xs">
                     <tr>
+                        <th class="py-3 px-4 w-10">
+                            <input type="checkbox" id="selectAll" class="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded">
+                        </th>
                         <th class="py-3 px-4 min-w-[100px]">学号</th>
                         <th class="py-3 px-4 min-w-[100px]">姓名</th>
                         <th class="py-3 px-4 min-w-[100px]">班级</th>
@@ -139,6 +174,18 @@ function renderTable(page = 1) {
         row.className = 'border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:transition';
         row.setAttribute('data-identities', user.identity_names.join(','));
         row.setAttribute('data-transfer-status', user.transfer_status);
+        row.setAttribute('data-user-id', user.id);
+
+        // 复选框
+        const td0 = document.createElement('td');
+        td0.className = 'py-3 px-4';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'user-checkbox h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded';
+        cb.value = user.id;
+        cb.addEventListener('change', updateBatchBar);
+        td0.appendChild(cb);
+        row.appendChild(td0);
 
         // 学号
         const td1 = document.createElement('td');
@@ -328,6 +375,99 @@ function bindUpdateButtons() {
         });
     });
 }
+
+// 批量操作相关函数
+function getSelectedUserIds() {
+    return Array.from(document.querySelectorAll('.user-checkbox:checked')).map(cb => parseInt(cb.value));
+}
+
+function updateBatchBar() {
+    const selected = getSelectedUserIds();
+    const batchBar = document.getElementById('batchBar');
+    const countEl = document.getElementById('selectedCount');
+    if (selected.length > 0) {
+        batchBar.classList.remove('hidden');
+        countEl.textContent = selected.length;
+    } else {
+        batchBar.classList.add('hidden');
+    }
+}
+
+function clearSelection() {
+    document.querySelectorAll('.user-checkbox:checked').forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+    updateBatchBar();
+}
+
+function batchUpdate() {
+    const userIds = getSelectedUserIds();
+    if (userIds.length === 0) {
+        alert('请先选择用户');
+        return;
+    }
+    const transferStatus = document.getElementById('batchTransferStatus').value;
+    if (!transferStatus) {
+        alert('请选择转接状态');
+        return;
+    }
+    const receiveStatus = document.getElementById('batchReceiveStatus').value;
+    const progress = document.getElementById('batchProgress').value;
+    
+    if (!confirm(`确定要批量更新 ${userIds.length} 个用户的转接状态吗？`)) return;
+    
+    fetch('{{ url_for("batch_update_transfer") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            user_ids: userIds,
+            transfer_status: transferStatus,
+            receive_status: receiveStatus,
+            progress: progress ? parseInt(progress) : null
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert(`成功更新 ${data.count} 个用户`);
+            location.reload();
+        } else {
+            alert('批量更新失败: ' + data.error);
+        }
+    })
+    .catch(err => alert('请求失败: ' + err));
+}
+
+function batchExport() {
+    const userIds = getSelectedUserIds();
+    fetch('{{ url_for("batch_export_transfer") }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_ids: userIds })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('导出失败');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'transfer_status_export.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(err => alert('导出失败: ' + err));
+}
+
+// Select all checkbox
+document.getElementById('selectAll').addEventListener('change', function() {
+    document.querySelectorAll('.user-checkbox').forEach(cb => {
+        cb.checked = this.checked;
+    });
+    updateBatchBar();
+});
 
 // 事件监听
 document.getElementById('searchInput').addEventListener('input', filterUsers);
